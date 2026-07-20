@@ -1,0 +1,158 @@
+---
+import { Header } from "@components/misc";
+import FormattedDate from "@components/misc/formatted-date.astro";
+import { BaseHead } from "@components/seo";
+import RootLayout from "@layouts/root-layout.astro";
+import { clsx } from "@utils/index";
+
+interface Props {
+	title: string;
+	description: string;
+	showTldr?: boolean;
+	pubDate: Date;
+	updatedDate?: Date;
+	readingTime?: number;
+}
+
+const { title, description, showTldr, pubDate, updatedDate, readingTime } =
+	Astro.props;
+---
+
+<html lang='en'>
+	<head>
+		<BaseHead
+			title={title}
+			description={description}
+			type='article'
+			publishedTime={pubDate}
+			modifiedTime={updatedDate}
+		/>
+	</head>
+
+	<RootLayout>
+		<div
+			id='navbar+title'
+			class='flex flex-col w-full gap-6 max-w-xl'>
+			<Header />
+
+			<article
+				id='blog-content'
+				class='w-full flex flex-col gap-6 items-center justify-center'>
+				<h1
+					class='w-full max-w-xl text-4xl md:text-5xl lg:text-7xl font-medium tracking-tight'>
+					{title}
+				</h1>
+				<div class='flex flex-row gap-2 w-full max-w-xl'>
+					<p class='text-start text-gray-500 font-medium'>
+						<FormattedDate date={pubDate.toString()} />
+					</p>
+					<span class='text-gray-500 font-medium'>·</span>
+					<p class='text-start text-gray-500 font-medium'>
+						{readingTime} min read
+					</p>
+				</div>
+
+				{
+				showTldr && (
+					<p
+						class='w-full max-w-xl text-start font-medium text-gray-700 dark:text-gray-300 text-lg leading-relaxed'>
+						<span class='font-semibold'>tl;dr: </span>
+						{description}
+					</p>
+				)
+				}
+				<div
+					class={clsx(
+						'relative max-w-xl',
+					'w-full max-w-none prose prose-lg leading-relaxed my-3 prose-p:font-medium dark:prose-invert prose-a:underline items-center justify-center',
+						'dark:prose-a:bg-red-950 dark:prose-a:decoration-red-400 dark:prose-a:underline prose-a:bg-red-50 prose-a:decoration-red-500',
+						'prose-h1:font-medium prose-h2:font-medium prose-h3:font-medium prose-h4:font-medium prose-h5:font-medium prose-h6:font-medium',
+						'prose-h1:tracking-tight prose-h2:tracking-tight prose-h3:tracking-tight prose-h4:tracking-tight prose-h5:tracking-tight prose-h6:tracking-tight',
+						'prose-ul:font-medium prose-ol:font-medium prose-li:font-medium',
+						'prose-ul:space-y-3 prose-ol:space-y-3 prose-li:space-y-3',
+						'prose-img:rounded-lg prose-img:my-8 prose-img:max-w-full prose-img:h-auto',
+						'[&_:not(pre)>code]:bg-neutral-100 [&_:not(pre)>code]:dark:bg-neutral-800 [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:rounded-md [&_:not(pre)>code]:text-[0.9em] [&_:not(pre)>code]:font-normal [&_:not(pre)>code]:before:content-none [&_:not(pre)>code]:after:content-none',
+						'[&_img]:max-w-full [&_img]:h-auto [&_img]:w-auto'
+					)}>
+					<slot />
+				</div>
+			</article>
+		</div>
+	</RootLayout>
+
+	<style is:global>
+		#blog-content .prose :is(h2, h3, h4)[id] {
+			position: relative;
+			cursor: pointer;
+		}
+
+		#blog-content .prose :is(h2, h3, h4)[id]::after {
+			content: '#';
+			position: absolute;
+			left: -1.5rem;
+			opacity: 0;
+			color: rgb(163 163 163);
+			transition: opacity 0.15s;
+		}
+
+		#blog-content .prose :is(h2, h3, h4)[id]:hover::after {
+			opacity: 1;
+		}
+	</style>
+
+	<script>
+		document.querySelectorAll('#blog-content .prose :is(h2, h3, h4)[id]').forEach((heading) => {
+			heading.addEventListener('click', () => {
+				const url = `${window.location.origin}${window.location.pathname}#${heading.id}`;
+				navigator.clipboard.writeText(url);
+				history.replaceState(null, '', `#${heading.id}`);
+			});
+		});
+	</script>
+
+	<script>
+		// navigator.vibrate works during scroll without any AudioContext/user-gesture requirement
+		const vibrate = (pattern: number | number[]) => navigator.vibrate?.(pattern);
+
+		const article = document.getElementById('blog-content');
+
+		if (article) {
+			const RATCHET_PX = 150;
+			const milestones = [0.25, 0.5, 0.75, 1.0];
+			const milestonePatterns: (number | number[])[] = [
+				15,
+				25,
+				[15, 30, 25],
+				[30, 50, 40],
+			];
+			const fired = new Set<number>();
+
+			let lastY = window.scrollY;
+			let ratchet = 0;
+
+			window.addEventListener('scroll', () => {
+				const currentY = window.scrollY;
+				ratchet += Math.abs(currentY - lastY);
+				lastY = currentY;
+
+				if (ratchet >= RATCHET_PX) {
+					vibrate(8);
+					ratchet = ratchet % RATCHET_PX;
+				}
+
+				const articleTop = article.getBoundingClientRect().top + window.scrollY;
+				const progress = Math.min(
+					(currentY + window.innerHeight - articleTop) / article.offsetHeight,
+					1
+				);
+
+				milestones.forEach((m, i) => {
+					if (!fired.has(m) && progress >= m) {
+						fired.add(m);
+						vibrate(milestonePatterns[i]);
+					}
+				});
+			}, { passive: true });
+		}
+	</script>
+</html>

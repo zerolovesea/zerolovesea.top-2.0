@@ -1,0 +1,36 @@
+---
+import { getCollection, render } from "astro:content";
+import { ScrollProgress } from "@components/misc";
+import ThoughtsLayout from "@layouts/thoughts-layout.astro";
+import WritingLayout from "@layouts/writing-layout.astro";
+import { getReadingTime } from "@utils/index";
+
+const { slug } = Astro.params;
+
+const writings = await getCollection("writing");
+const thoughts = await getCollection("thought");
+const pages = await getCollection("page");
+
+const writing = writings.find((p) => p.id === slug);
+const thought = thoughts.find((p) => p.id === slug);
+const page = pages.find((p) => p.id === slug);
+const post = writing ?? thought ?? page;
+if (!post) {
+	return Astro.redirect("/404");
+}
+
+const { Content } = await render(post);
+const readingTime = getReadingTime(post.body ?? "");
+---
+
+{writing || page ? (
+	<WritingLayout {...(writing ?? page)!.data} readingTime={readingTime}>
+		<Content />
+		<ScrollProgress />
+	</WritingLayout>
+) : thought ? (
+	<ThoughtsLayout {...thought.data} readingTime={readingTime}>
+		<Content />
+		<ScrollProgress />
+	</ThoughtsLayout>
+) : null}

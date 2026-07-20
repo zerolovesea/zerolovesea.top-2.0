@@ -1,0 +1,39 @@
+---
+import { getCollection } from "astro:content";
+import { WritingItem } from "@components/cards";
+import { Header } from "@components/misc";
+import { BaseHead } from "@components/seo";
+import RootLayout from "@layouts/root-layout.astro";
+
+const writings = (await getCollection("writing")).sort(
+	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+---
+
+<!doctype html>
+<html lang='en'>
+	<head>
+		<BaseHead
+			title="writings"
+			description="read sanju's writings on design, engineering, and product"
+		/>
+	</head>
+	<RootLayout>
+		<div
+			id='Header+title'
+			class='flex flex-col w-full gap-6 max-w-xl'>
+			<Header />
+			<h1 class='w-full text-7xl font-medium tracking-tight'>writings</h1>
+
+			{
+				writings.map((writing) => (
+					<WritingItem
+						title={writing.data.title}
+						date={writing.data.pubDate}
+						slug={writing.id}
+					/>
+				))
+			}
+		</div>
+	</RootLayout>
+</html>

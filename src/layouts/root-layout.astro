@@ -1,0 +1,28 @@
+---
+interface Props {
+	maxWidth?: string;
+}
+
+const { maxWidth = "max-w-xl" } = Astro.props;
+---
+
+<div
+	id='root-container'
+	class={`w-full flex flex-col items-center justify-start my-6 p-4 antialiased ${maxWidth} mx-auto`}>
+	<slot />
+</div>
+
+<script>
+	import { WebHaptics } from 'web-haptics';
+
+	// single shared instance — any page can use window.__haptics
+	const haptics = new WebHaptics();
+	(window as any).__haptics = haptics;
+
+	document.addEventListener('click', (e) => {
+		const target = e.target as Element;
+		if (target.closest('a, button')) {
+			haptics.trigger([{ duration: 15, intensity: 0.4 }]);
+		}
+	});
+</script>

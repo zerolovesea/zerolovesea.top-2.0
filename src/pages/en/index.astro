@@ -1,0 +1,48 @@
+---
+import { Header } from "@components/misc";
+import { BaseHead } from "@components/seo";
+import { products, socialLinks } from "@data/index";
+import RootLayout from "@layouts/root-layout.astro";
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead
+			title="ZeroLoveSeA"
+			description="Yang Zhou's notes on machine learning, engineering, and life."
+		/>
+	</head>
+	<RootLayout>
+		<div class="flex flex-col w-full gap-6 max-w-xl">
+			<Header />
+			<h1 class="w-full text-start text-[min(12vw,72px)] font-medium leading-[0.9] tracking-[-2px] sm:tracking-[-4px]">
+				ZeroLoveSeA
+				<span class="block text-gray-500 dark:text-gray-400">machine learning engineer</span>
+			</h1>
+			<div class="flex flex-col gap-5 text-lg font-medium leading-relaxed text-gray-700 dark:text-gray-400">
+				<p>I'm Yang Zhou, based in Suzhou and working on data modeling, precision marketing, and user growth.</p>
+				<p>I write about recommender systems, machine learning, language models, engineering practice, and the occasional thought from everyday life.</p>
+				<div>
+					<p>I'm building:</p>
+					<div class="mt-4 flex flex-wrap gap-2">
+						{products.map((product) => (
+							<a href={product.url} target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 rounded-full bg-gray-100 py-2 pl-2 pr-4 text-lg text-gray-800 transition-transform duration-200 hover:scale-105 hover:bg-gray-200 active:scale-[0.98] dark:bg-neutral-800 dark:text-gray-100 dark:hover:bg-neutral-700">
+								<img src={`${new URL(product.url).origin}/favicon.ico`} alt="" class="size-9 rounded-full object-cover" />
+								<span>{product.name}</span>
+							</a>
+						))}
+					</div>
+				</div>
+				<p>If you're working on open source, machine learning, or Kaggle too, feel free to get in touch.</p>
+			</div>
+			<div class="flex flex-wrap gap-x-4 gap-y-2">
+				{socialLinks.filter((link) => ["github", "linkedin", "kaggle", "email"].includes(link.label)).map((link) => (
+					<a href={link.url} target={link.url.startsWith("mailto:") ? undefined : "_blank"} rel={link.url.startsWith("mailto:") ? undefined : "noopener noreferrer"} class="text-lg font-medium text-gray-700 hover:underline hover:underline-offset-2 dark:text-gray-400 dark:hover:text-gray-100">
+						{link.label}
+					</a>
+				))}
+			</div>
+		</div>
+	</RootLayout>
+</html>

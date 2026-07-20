@@ -1,0 +1,26 @@
+# build output
+dist/
+# generated types
+.astro/
+# local Cloudflare/Wrangler state
+.wrangler/
+
+# dependencies
+node_modules/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+# environment variables
+.env
+.env.production
+
+# mcp config (contains tokens)
+.mcp.json
+
+# macOS-specific files
+.DS_Store

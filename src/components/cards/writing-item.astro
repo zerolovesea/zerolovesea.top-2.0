@@ -1,0 +1,14 @@
+---
+import FormattedDate from "@components/misc/formatted-date.astro";
+
+const { title, date, slug, locale = "zh" } = Astro.props;
+---
+
+<a href={`${locale === "en" ? "/en/" : "/"}${slug}`}>
+	<article class='grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4'>
+		<h3 class='text-xl font-medium'>{title}</h3>
+		<p class='whitespace-nowrap text-right text-gray-500 font-medium'>
+			<FormattedDate date={date} />
+		</p>
+	</article>
+</a>
