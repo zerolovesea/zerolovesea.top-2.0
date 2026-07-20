@@ -18,11 +18,6 @@ export const GET: APIRoute = async () => {
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-  <url>
-    <loc>${new URL("/me", import.meta.env.SITE).href}</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
 </urlset>`;
 
 	return new Response(sitemap, {
