@@ -97,8 +97,11 @@ export function getBackgroundColorClass(bg_colour: string): string {
 }
 
 export function getReadingTime(text: string) {
-	const wordsPerMinute = 200;
-	const words = text.trim().split(/\s+/).length;
-	const minutes = Math.ceil(words / wordsPerMinute);
-	return minutes;
+	const chineseCharacters = (text.match(/[\u3400-\u9fff]/g) ?? []).length;
+	const words = (
+		text
+			.replace(/[\u3400-\u9fff]/g, " ")
+			.match(/[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g) ?? []
+	).length;
+	return Math.max(1, Math.ceil(chineseCharacters / 400 + words / 200));
 }

@@ -8,6 +8,8 @@
 		"build": "./node_modules/.bin/astro check && ./node_modules/.bin/astro build",
 		"preview": "bun run dev",
 		"astro": "./node_modules/.bin/astro",
+		"new": "bun scripts/new-post.ts",
+		"test:reading-time": "bun scripts/test-reading-time.ts",
 		"check": "biome check ./src",
 		"lint": "biome lint ./src",
 		"format": "biome format --write ."

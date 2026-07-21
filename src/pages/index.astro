@@ -3,6 +3,16 @@ import { Header } from "@components/misc";
 import { BaseHead } from "@components/seo";
 import { SITE_DESCRIPTION, products, socialLinks } from "@data/index";
 import RootLayout from "@layouts/root-layout.astro";
+
+const preferredLanguage = Astro.request.headers
+	.get("accept-language")
+	?.split(",")[0]
+	?.trim()
+	.toLowerCase();
+
+if (preferredLanguage && !preferredLanguage.startsWith("zh")) {
+	return Astro.redirect("/en");
+}
 ---
 
 <!doctype html>
@@ -15,13 +25,13 @@ import RootLayout from "@layouts/root-layout.astro";
 			<Header />
 			<h1 class="w-full text-start text-[min(12vw,72px)] font-medium leading-[0.9] tracking-[-2px] sm:tracking-[-4px]">
 				ZeroLoveSeA
-				<span class="block text-gray-500 dark:text-gray-400">machine learning engineer</span>
+				<span class="block text-gray-500 dark:text-gray-400">engineer, trader</span>
 			</h1>
 			<div class="flex flex-col gap-5 text-lg font-medium leading-relaxed text-gray-700 dark:text-gray-400">
-				<p>我是 Yang Zhou，目前在苏州从事数据建模、精准营销和用户增长相关工作。</p>
-				<p>我关注推荐系统、机器学习、语言模型与工程实践，也会把日常思考写进这个博客。</p>
+				<p>生于江南水乡，目前从事精准营销，用户增长等相关工作。</p>
+				<p>我研究机器学习、推荐系统与量化低频策略，也关注把想法落地的工程细节。我在这里记录技术探索、交易记录和日常生活。</p>
 				<div>
-					<p>我在做这些项目：</p>
+					<p>我最近在做：</p>
 					<div class="mt-4 flex flex-wrap gap-2">
 						{products.map((product) => (
 							<a
@@ -29,13 +39,22 @@ import RootLayout from "@layouts/root-layout.astro";
 								target="_blank"
 								rel="noopener noreferrer"
 								class="flex items-center gap-2 rounded-full bg-gray-100 py-2 pl-2 pr-4 text-lg text-gray-800 transition-transform duration-200 hover:scale-105 hover:bg-gray-200 active:scale-[0.98] dark:bg-neutral-800 dark:text-gray-100 dark:hover:bg-neutral-700">
-								<img src={`${new URL(product.url).origin}/favicon.ico`} alt="" class="size-9 rounded-full object-cover" />
+								{product.image ? (
+									product.imageFit === "contain" ? (
+										<span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-white">
+											<img src={product.image} alt={product.name} class="size-6 object-contain" />
+										</span>
+									) : (
+										<img src={product.image} alt={product.name} class="size-9 rounded-full object-cover" />
+									)
+								) : (
+									<span class="flex size-9 items-center justify-center rounded-full bg-black text-xs font-semibold text-white dark:bg-white dark:text-black">{product.icon}</span>
+								)}
 								<span>{product.name}</span>
 							</a>
 						))}
 					</div>
 				</div>
-				<p>如果你也在做开源、机器学习或 Kaggle，欢迎联系我，一起喝咖啡或合作。</p>
 			</div>
 			<div class="flex flex-wrap gap-x-4 gap-y-2">
 				{socialLinks.filter((link) => ["github", "linkedin", "kaggle", "email"].includes(link.label)).map((link) => (
