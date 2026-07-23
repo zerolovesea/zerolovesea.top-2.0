@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { unified } from "@astrojs/markdown-remark";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import rehypeImageProxy from "./src/utils/rehype-image-proxy";
 
 // https://astro.build/config
 export default defineConfig({
@@ -23,7 +24,7 @@ export default defineConfig({
 	markdown: {
 		processor: unified({
 			remarkPlugins: [remarkMath],
-			rehypePlugins: [rehypeKatex],
+			rehypePlugins: [rehypeKatex, rehypeImageProxy],
 		}),
 	},
 	output: "static",
