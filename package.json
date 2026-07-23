@@ -10,7 +10,7 @@
 		"astro": "./node_modules/.bin/astro",
 		"new": "bun scripts/new-post.ts",
 		"s": "bun run astro dev",
-		"d": "bun run build && git push origin main",
+		"d": "bun run build && git add -A && git commit -m \"deploy: update site\" && git push origin main",
 		"test:reading-time": "bun scripts/test-reading-time.ts",
 		"check": "biome check ./src",
 		"lint": "biome lint ./src",
