@@ -1,0 +1,49 @@
+<script>
+	const article = document.getElementById("blog-content");
+	if (article) {
+		let visibleAt = document.visibilityState === "visible" ? Date.now() : 0;
+		let activeMs = 0;
+		let progress = 0;
+		let sent = false;
+
+		const updateProgress = () => {
+			const top = article.getBoundingClientRect().top + window.scrollY;
+			progress = Math.max(
+				progress,
+				Math.min((window.scrollY + window.innerHeight - top) / article.offsetHeight, 1),
+			);
+		};
+
+		const updateActiveTime = () => {
+			if (visibleAt) {
+				activeMs += Date.now() - visibleAt;
+				visibleAt = 0;
+			}
+		};
+
+		const trackReading = () => {
+			updateActiveTime();
+			if (sent || activeMs < 5000) return;
+			sent = true;
+			const umami = (window as Window & {
+				umami?: { track?: (event: string, data: Record<string, string>) => void };
+			}).umami;
+			umami?.track?.("article-reading", {
+				path: window.location.pathname,
+				seconds: String(Math.round(activeMs / 1000)),
+				progress: String(Math.round(progress * 100)),
+			});
+		};
+
+		window.addEventListener("scroll", updateProgress, { passive: true });
+		window.addEventListener("pagehide", trackReading);
+		document.addEventListener("visibilitychange", () => {
+			if (document.visibilityState === "visible") {
+				visibleAt = Date.now();
+			} else {
+				updateActiveTime();
+			}
+		});
+		updateProgress();
+	}
+</script>

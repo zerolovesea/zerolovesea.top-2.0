@@ -1,5 +1,5 @@
 ---
-import { Header } from "@components/misc";
+import { Header, ReadingAnalytics } from "@components/misc";
 import FormattedDate from "@components/misc/formatted-date.astro";
 import { BaseHead } from "@components/seo";
 import RootLayout from "@layouts/root-layout.astro";
@@ -74,6 +74,7 @@ const { title, description, pubDate, updatedDate, readingTime } = Astro.props;
 			</article>
 		</div>
 	</RootLayout>
+	<ReadingAnalytics />
 
 	<style is:global>
 		#blog-content .prose :is(h2, h3, h4)[id] {
