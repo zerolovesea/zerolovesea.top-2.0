@@ -4,6 +4,8 @@ description: "A short study of the history and core ideas behind 3D reconstructi
 pubDate: "2026-05-25 16:24:26"
 ---
 
+import { Sidenote } from "@components/interactive";
+
 I have written less and less in 2026. Partly, my motivation for studying recommender systems has waned—especially after generative retrieval raised the bar for data volume and multi-GPU clusters, making industrial-scale models difficult to reproduce locally. I have also spent a great deal of time researching stocks and have been less diligent about technical exploration. A fair self-criticism.
 
 For a while, I did not want to look at recommender systems, so I started exploring subjects that interested me. 3D reconstruction is one of them. Because I know almost nothing about computer graphics, I decided to learn the field from the beginning. Much of this post comes from ChatGPT, online articles, and open-source projects, so some of my early interpretations may be inaccurate.
@@ -16,11 +18,7 @@ One important issue is the explosion in data size. One extra dimension can mean 
 
 ## Stereo Matching
 
-Early 3D reconstruction applications mainly relied on stereo vision. By photographing the same object with a pair of cameras that mimic the positions of the left and right eyes, we find corresponding points in the two images, calculate their disparity, obtain a depth map—the distance from the object to the camera—and finally generate a point cloud or mesh. This gives a 2D image depth information.
-
-> Disparity is the positional difference of the same point in two images. It lets us infer distance, or depth. Calculate depth for every pixel and we obtain a collection of 3D points: a point cloud.
->
-> To calculate disparity, the same point must first be matched between the left and right images. This is the core of stereo matching. In broad terms, it uses a sliding-window-like procedure: take a small patch, find the most similar patch on the other side, score the match with a cost function—for example, a smaller grayscale difference means greater similarity—and choose the disparity with the lowest cost.
+Early 3D reconstruction applications mainly relied on stereo vision. By photographing the same object with a pair of cameras that mimic the positions of the left and right eyes, we find corresponding points in the two images, calculate their disparity, obtain a depth map—the distance from the object to the camera—and finally generate a point cloud or mesh. This gives a 2D image depth information.<Sidenote id="1">Disparity is the positional difference of the same point in two images. It lets us infer distance, or depth. Calculate depth for every pixel and we obtain a collection of 3D points: a point cloud.</Sidenote><Sidenote id="2">To calculate disparity, the same point must first be matched between the left and right images. This is the core of stereo matching. In broad terms, it uses a sliding-window-like procedure: take a small patch, find the most similar patch on the other side, score the match with a cost function—for example, a smaller grayscale difference means greater similarity—and choose the disparity with the lowest cost.</Sidenote>
 
 A stereo camera has two lenses, one on the left and one on the right. Their distance is the baseline, `B`. The camera focal length, `f`, is also known—for example, 800 pixels.
 
@@ -44,13 +42,7 @@ The idea is the same. The same point appears at different locations in images ta
 
 In practice there are two parts. First estimate the pose of each camera, then perform matching using those poses. Once we know where many photos were taken, visual consistency among them can recover a dense 3D structure of the scene surface.
 
-This involves **SfM** (Structure from Motion), which extracts camera intrinsics—focal length, principal point, distortion parameters, and image size—camera extrinsics—position and orientation—and a sparse point cloud from photographs taken at different angles. It then fuses the depth map from every image into a dense point cloud, depth map, or mesh.
-
-> A mesh is a grid of polygons used to form a 3D graphic. A model consists of multiple meshes; each mesh contains multiple polygons, usually triangles.
->
-> A related concept is the Gaussian. A 3D Gaussian resembles a semi-transparent ellipsoid. Layers of them approximate a scene as the human eye sees it. Compared with meshes, they favor visual realism over geometric precision.
->
-> `The 3D world is represented by a set of 3D points—usually hundreds of thousands to millions. Every point is a 3D Gaussian with its own parameters, fitted so that rendering the scene closely matches known dataset images. --bimant`
+This involves **SfM** (Structure from Motion), which extracts camera intrinsics—focal length, principal point, distortion parameters, and image size—camera extrinsics—position and orientation—and a sparse point cloud from photographs taken at different angles. It then fuses the depth map from every image into a dense point cloud, depth map, or mesh.<Sidenote id="3">A mesh is a grid of polygons used to form a 3D graphic. A model consists of multiple meshes; each mesh contains multiple polygons, usually triangles.</Sidenote><Sidenote id="4">A related concept is the Gaussian. A 3D Gaussian resembles a semi-transparent ellipsoid. Layers of them approximate a scene as the human eye sees it. Compared with meshes, they favor visual realism over geometric precision.</Sidenote><Sidenote id="5">The 3D world is represented by a set of 3D points—usually hundreds of thousands to millions. Every point is a 3D Gaussian with its own parameters, fitted so that rendering the scene closely matches known dataset images. --bimant</Sidenote>
 
 The MVS intuition is that a point viewed from different positions should have similar color and texture. Assume a pixel has depth `d` and corresponds to a 3D point `P`. When `P` is projected into the other photographs, its color and texture should remain similar. We take the depth whose projected appearances agree across the greatest number of images as the final depth.
 
