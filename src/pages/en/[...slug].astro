@@ -1,9 +1,19 @@
 ---
+import type { GetStaticPaths } from "astro";
 import { getCollection, render } from "astro:content";
 import { ScrollProgress } from "@components/misc";
 import ThoughtsLayout from "@layouts/thoughts-layout.astro";
 import WritingLayout from "@layouts/writing-layout.astro";
 import { getReadingTime } from "@utils/index";
+
+export const getStaticPaths = (async () => {
+	const [writings, thoughts] = await Promise.all([
+		getCollection("writingEn"),
+		getCollection("thoughtEn"),
+	]);
+
+	return [...writings, ...thoughts].map(({ id }) => ({ params: { slug: id } }));
+}) satisfies GetStaticPaths;
 
 const { slug } = Astro.params;
 const writing = (await getCollection("writingEn")).find(
@@ -15,7 +25,7 @@ const thought = (await getCollection("thoughtEn")).find(
 const post = writing ?? thought;
 
 if (!post) {
-	return Astro.redirect(`/${slug}`);
+	throw new Error(`Missing English content for ${slug}`);
 }
 
 const { Content } = await render(post);

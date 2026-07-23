@@ -4,15 +4,6 @@ import { BaseHead } from "@components/seo";
 import { SITE_DESCRIPTION, products, socialLinks } from "@data/index";
 import RootLayout from "@layouts/root-layout.astro";
 
-const preferredLanguage = Astro.request.headers
-	.get("accept-language")
-	?.split(",")[0]
-	?.trim()
-	.toLowerCase();
-
-if (preferredLanguage && !preferredLanguage.startsWith("zh")) {
-	return Astro.redirect("/en");
-}
 ---
 
 <!doctype html>

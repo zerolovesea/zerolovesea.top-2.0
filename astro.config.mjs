@@ -1,6 +1,5 @@
 import { defineConfig } from "astro/config";
 import mdx from "@astrojs/mdx";
-import cloudflare from "@astrojs/cloudflare";
 import tailwindcss from "@tailwindcss/vite";
 import { unified } from "@astrojs/markdown-remark";
 import remarkMath from "remark-math";
@@ -19,9 +18,6 @@ export default defineConfig({
 				exclude: ["astro/compiler-runtime"],
 			},
 		},
-		server: {
-			allowedHosts: ["frederick-east-surfing-beam.trycloudflare.com"],
-		},
 	},
 	integrations: [mdx()],
 	markdown: {
@@ -30,6 +26,5 @@ export default defineConfig({
 			rehypePlugins: [rehypeKatex],
 		}),
 	},
-	output: "server",
-	adapter: cloudflare(),
+	output: "static",
 });
