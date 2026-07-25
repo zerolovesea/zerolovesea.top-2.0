@@ -72,6 +72,19 @@ const { title, description, pubDate, updatedDate, readingTime } = Astro.props;
 					<slot />
 				</div>
 			</article>
+			<dialog id="image-lightbox" aria-label="image preview" tabindex="-1">
+				<div class="image-lightbox-controls">
+					<button type="button" data-close aria-label="close image preview" title="close">
+						<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
+							<path d="m6 6 12 12M18 6 6 18" />
+						</svg>
+					</button>
+				</div>
+				<figure>
+					<img id="image-lightbox-preview" alt="" />
+					<figcaption id="image-lightbox-caption" hidden></figcaption>
+				</figure>
+			</dialog>
 		</div>
 	</RootLayout>
 	<ReadingAnalytics />
@@ -94,6 +107,138 @@ const { title, description, pubDate, updatedDate, readingTime } = Astro.props;
 		#blog-content .prose :is(h2, h3, h4)[id]:hover::after {
 			opacity: 1;
 		}
+
+		#blog-content .prose .image-gallery {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+			gap: 0.75rem;
+			margin: 2rem 0;
+		}
+
+		#blog-content .prose .image-gallery a {
+			background: none;
+		}
+
+		#blog-content .prose .image-gallery img {
+			width: 100%;
+			height: 10rem;
+			margin: 0;
+			object-fit: cover;
+			transition: opacity 150ms ease;
+		}
+
+		#blog-content .prose .image-gallery a:hover img {
+			opacity: 0.8;
+		}
+
+		#image-lightbox {
+			position: fixed;
+			inset: 0;
+			width: fit-content;
+			height: fit-content;
+			margin: auto;
+			max-width: min(90vw, 72rem);
+			padding: 0.75rem;
+			border: 1px solid var(--color-border-strong);
+			border-radius: 0.5rem;
+			background: var(--color-bg);
+			color: var(--color-text);
+		}
+
+		#image-lightbox[open] {
+			animation: image-lightbox-in 150ms ease-out;
+		}
+
+		#image-lightbox.is-closing {
+			animation: image-lightbox-out 120ms ease-in forwards;
+		}
+
+		#image-lightbox::backdrop {
+			background: rgb(0 0 0 / 70%);
+		}
+
+		#image-lightbox .image-lightbox-controls {
+			display: flex;
+			justify-content: flex-end;
+			margin-bottom: 0.5rem;
+		}
+
+		#image-lightbox button {
+			display: grid;
+			place-items: center;
+			width: 2rem;
+			height: 2rem;
+			border-radius: 0.25rem;
+			border: 0;
+			color: var(--color-text-secondary);
+			transition: background-color 150ms ease, color 150ms ease;
+		}
+
+		#image-lightbox button:hover {
+			background: var(--color-border);
+			color: var(--color-text);
+		}
+
+		#image-lightbox button:focus-visible {
+			outline: 2px solid var(--color-text);
+			outline-offset: 2px;
+		}
+
+		#image-lightbox button svg {
+			width: 1.125rem;
+			height: 1.125rem;
+		}
+
+		@keyframes image-lightbox-in {
+			from {
+				opacity: 0;
+				transform: scale(0.97);
+			}
+			to {
+				opacity: 1;
+				transform: scale(1);
+			}
+		}
+
+		@keyframes image-lightbox-out {
+			from {
+				opacity: 1;
+				transform: scale(1);
+			}
+			to {
+				opacity: 0;
+				transform: scale(0.97);
+			}
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			#image-lightbox[open],
+			#image-lightbox.is-closing {
+				animation: none;
+			}
+		}
+
+		#image-lightbox figure {
+			margin: 0;
+		}
+
+		#image-lightbox img {
+			display: block;
+			max-width: 100%;
+			max-height: calc(90dvh - 4rem);
+		}
+
+		#image-lightbox figcaption {
+			margin-top: 0.5rem;
+			text-align: center;
+			color: var(--color-text-secondary);
+		}
+
+		@media (min-width: 640px) {
+			#blog-content .prose .image-gallery img {
+				height: 12rem;
+			}
+		}
 	</style>
 
 	<script>
@@ -104,6 +249,56 @@ const { title, description, pubDate, updatedDate, readingTime } = Astro.props;
 				history.replaceState(null, '', `#${heading.id}`);
 			});
 		});
+	</script>
+
+	<script>
+		const lightbox = document.querySelector<HTMLDialogElement>('#image-lightbox');
+		const preview = document.querySelector<HTMLImageElement>('#image-lightbox-preview');
+		const caption = document.querySelector<HTMLElement>('#image-lightbox-caption');
+		const closeButton = document.querySelector<HTMLButtonElement>('#image-lightbox [data-close]');
+
+		if (lightbox && preview && caption) {
+			const closeLightbox = () => {
+				if (lightbox.classList.contains('is-closing')) return;
+				if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+					lightbox.close();
+					return;
+				}
+
+				lightbox.classList.add('is-closing');
+				lightbox.addEventListener(
+					'animationend',
+					() => {
+						lightbox.close();
+						lightbox.classList.remove('is-closing');
+					},
+					{ once: true },
+				);
+			};
+
+			document.querySelectorAll<HTMLAnchorElement>('#blog-content .image-gallery a').forEach((link) => {
+				link.addEventListener('click', (event) => {
+					event.preventDefault();
+					preview.src = link.href;
+					const alt = link.querySelector('img')?.alt ?? '';
+					preview.alt = alt;
+					caption.textContent = alt;
+					caption.hidden = !alt;
+					lightbox.classList.remove('is-closing');
+					lightbox.showModal();
+					lightbox.focus();
+				});
+			});
+
+			closeButton?.addEventListener('click', closeLightbox);
+			lightbox.addEventListener('click', (event) => {
+				if (event.target === lightbox) closeLightbox();
+			});
+			lightbox.addEventListener('cancel', (event) => {
+				event.preventDefault();
+				closeLightbox();
+			});
+		}
 	</script>
 
 	<script>
