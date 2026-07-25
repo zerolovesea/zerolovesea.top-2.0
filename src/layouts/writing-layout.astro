@@ -131,6 +131,11 @@ const { title, description, pubDate, updatedDate, readingTime } = Astro.props;
 			opacity: 0.8;
 		}
 
+		#blog-content .prose .image-gallery img,
+		#blog-content .prose > p > img {
+			cursor: zoom-in;
+		}
+
 		#image-lightbox {
 			position: fixed;
 			inset: 0;
@@ -155,6 +160,10 @@ const { title, description, pubDate, updatedDate, readingTime } = Astro.props;
 
 		#image-lightbox::backdrop {
 			background: rgb(0 0 0 / 70%);
+		}
+
+		html.image-lightbox-open {
+			overflow: hidden;
 		}
 
 		#image-lightbox .image-lightbox-controls {
@@ -258,6 +267,10 @@ const { title, description, pubDate, updatedDate, readingTime } = Astro.props;
 		const closeButton = document.querySelector<HTMLButtonElement>('#image-lightbox [data-close]');
 
 		if (lightbox && preview && caption) {
+			lightbox.addEventListener('close', () => {
+				document.documentElement.classList.remove('image-lightbox-open');
+			});
+
 			const closeLightbox = () => {
 				if (lightbox.classList.contains('is-closing')) return;
 				if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -276,19 +289,27 @@ const { title, description, pubDate, updatedDate, readingTime } = Astro.props;
 				);
 			};
 
-			document.querySelectorAll<HTMLAnchorElement>('#blog-content .image-gallery a').forEach((link) => {
-				link.addEventListener('click', (event) => {
-					event.preventDefault();
-					preview.src = link.href;
-					const alt = link.querySelector('img')?.alt ?? '';
-					preview.alt = alt;
-					caption.textContent = alt;
-					caption.hidden = !alt;
-					lightbox.classList.remove('is-closing');
-					lightbox.showModal();
-					lightbox.focus();
+			document
+				.querySelectorAll<HTMLAnchorElement | HTMLImageElement>(
+					'#blog-content .image-gallery a, #blog-content .prose > p > img',
+				)
+				.forEach((element) => {
+					element.addEventListener('click', (event) => {
+						event.preventDefault();
+						const image = element instanceof HTMLImageElement ? element : element.querySelector('img');
+						if (!image) return;
+
+						preview.src = element instanceof HTMLAnchorElement ? element.href : image.currentSrc || image.src;
+						const alt = image.alt;
+						preview.alt = alt;
+						caption.textContent = alt;
+						caption.hidden = !alt;
+						lightbox.classList.remove('is-closing');
+						document.documentElement.classList.add('image-lightbox-open');
+						lightbox.showModal();
+						lightbox.focus();
+					});
 				});
-			});
 
 			closeButton?.addEventListener('click', closeLightbox);
 			lightbox.addEventListener('click', (event) => {
