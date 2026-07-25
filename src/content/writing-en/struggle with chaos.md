@@ -14,7 +14,7 @@ I had my company health check at the end of 2025. Guess what? I was overweight. 
 
 ## Survive first, figure out the rest later
 
-At the annual meeting, I received the business unit's Outstanding Employee award. That was a pleasant surprise. I got lucky last year: the industry was expanding overall, and I still had the shine of a first-year newcomer. Between performance and technical exploration, I made a few real breakthroughs, which somehow added up to an award.
+At the annual meeting, I received the company's Outstanding Employee award. That was a pleasant surprise. I got lucky last year: the industry was expanding overall, and I still had the shine of a first-year newcomer. Between performance and technical exploration, I made a few real breakthroughs, which somehow added up to an award.
 
 ![](20260725-2.jpeg)
 
