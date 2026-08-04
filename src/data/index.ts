@@ -31,10 +31,22 @@ export const products = [
 		url: "https://www.joinquant.com",
 	},
 	{
+		name: "Brevia",
+		icon: "Brevia",
+		image: "/products/brevia.svg",
+		url: "https://github.com/zerolovesea/Brevia",
+	},
+	{
 		name: "Rumii",
 		icon: "Rumii",
 		image: "/products/rumiimatch.png",
 		url: "https://github.com/zerolovesea/Rumiis",
+	},
+	{
+		name: "NextRec",
+		icon: "Next",
+		image: "/products/nextrec.svg",
+		url: "https://github.com/zerolovesea/NextRec",
 	},
 	{
 		name: "Kaggle",
@@ -42,12 +54,6 @@ export const products = [
 		image: "/products/kaggle.svg",
 		imageFit: "contain",
 		url: "https://www.kaggle.com/yaaangzhou",
-	},
-	{
-		name: "NextRec",
-		icon: "Next",
-		image: "/products/nextrec.svg",
-		url: "https://github.com/zerolovesea/NextRec",
 	},
 	{
 		name: "AI DASH",
