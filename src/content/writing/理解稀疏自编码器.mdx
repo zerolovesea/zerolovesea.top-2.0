@@ -1,0 +1,212 @@
+---
+title: "理解稀疏自编码器"
+description: "SAE的原理学习。"
+pubDate: "2026-08-12 17:28:47"
+---
+
+import { Sidenote } from "@components/interactive";
+
+其实最近主要花时间在vibe我的会议转写工具[Brevia](https://brevia.work/)，要更新文章也应该写开发日志，不过我在测试这个工具的时候，用了谷歌DeepMind的最新podcast，讲的是关于大语言模型可解释性，受访者是他们可解释性团队负责人Neil Nanda。
+
+在整个谈话里，他们主要在聊可解释性的必要性，如何实现，能拿来干什么。在其中某一段里，他们提到了**稀疏自编码器（Sparse Autoencoders, SAE）**，并介绍其为现在比较fancy的技术，用于学习大部分时间不重要，但在关键时刻很重要的一些激活值。
+
+这勾起了我的兴趣，因为之前在研究生成式推荐的时候，遇到了RQ-VAE这样的信息压缩技术，用于将高维输入压缩为稀疏语义编码，我猜想他们的作用或许类似，因此花点时间看一下它的概念。
+
+## Podcast中的相关内容
+
+我先直接拿podcast中的会议纪要：
+
+---
+
+### **稀疏自编码器（Sparse Autoencoders, SAE）**
+
+**主要讨论：**
+
+- SAE 目标与探针相似（告诉我们模型在想什么），但不需人工指定要找的概念，而是尝试自动找出模型可能思考的每个概念。类比：脑扫描仪显示复杂脑波，默认无用，但盯着看会发现规律——看灯时某个"波纹"亮起、说话时另一个亮起、听时又一个。SAE 是一种机器学习技术，尝试学习那些"大部分时间不出现、但出现时很重要"的波纹，因为这些可能对应真实概念。可得到数万甚至数百万个被发现的概念。SAE 能告诉你想不到去找的东西，这点令人兴奋。
+
+- 幻觉理解的例子（Neil 督导的论文）：SAE 有"我认识这个实体"和"我不认识这个实体"的概念。给它 Beatles 歌曲《Yellow Submarine》它会认识，给"Turbo Y Submarine / turquoise submarine"它不认识。认识就回答问题，不认识就说"我不知道"。可编辑这些概念：让它以为不认识 Yellow Submarine，它就不回答；让它以为认识 turquoise submarine，它就会尝试回答并编造。这为检测模型何时在幻觉提供了有用信号。后续论文进一步探索了这一"幻觉探针"方向，但技术精度可能还不足以用于面向消费者的真实系统，是很有前景的研究方向。
+- 棱镜类比：模型如同白光，其中含多种波长/颜色的光但看起来是白色。模型一次思考数百个概念（如"是否接近句尾""接下来是名词还是动词""我模拟的角色有什么情绪"等），我们只看到一个数字列表因为所有概念被"揉在一起"，可用手段把它们分开。
+
+**局限性：**
+
+SAE 自动发现概念不一定全对。Neil 视其为一种权衡：若目标明确且有好数据，训练探针通常更好；若没有好数据或不知道要找什么，SAE 这类"不太可靠但很有用"的工具适合作为第一步，有时也是唯一需要的一步，也常能告诉你该找什么、再去收集好数据。发现的问题：有些概念找不到——如训练 SAE 的数据中聊天数据不足，会漏掉"拒绝有害请求"这类重要概念。
+
+---
+
+## 稀疏正则
+
+SAE的最早起源于1980年代，1996年Nature上的一个计算神经科学领域的工作，他们建立一个重建图片的模型，并用类似正则项的惩罚函数，让模型用尽可能少的激活神经元来重建图片<Sidenote id="1">当时的重建图片不是将图片传入encoder再用encoder还原，而是用不同类似卷积核的数值矩阵来表示边缘特征</Sidenote>，目的是了解为什么动物的神经元，会对一些区域产生反应。<Sidenote id="2">原论文摘要：哺乳动物初级视觉皮层中简单细胞的感受野可以被描述为具有空间定位特性、特定方向性，并且对不同空间尺度上的结构具有选择性响应能力，这些特性与小波变换的基础函数类似。理解视觉神经元这种响应特性的一种方法，是考虑它们与自然图像统计结构之间的关联，以实现高效的编码...... </Sidenote><Sidenote id="3">原论文摘要：在这里，我们探讨了这样一种编码策略：通过最大化稀疏性来构建感受野，这种策略足以解释上述特性。我们表明，一种试图寻找稀疏线性编码的学习算法……用于自然场景的编码方式会创造出一种完整的、局部化的、定向的、带通响应的感受野结构，这种结构类似于初级视觉皮层中的结构。这种稀疏的图像编码方式为后续的处理阶段提供了更高效的表示方式。</Sidenote>
+
+> 计算神经学的发展远比我想象的要超前，1996年已经能数值化生物学的神经元信息，并且他们已经明确了解了神经元的感受野概念。以后有时间了解一下。
+
+## 稀疏自编码器
+
+![常规自编码器](/_posts/理解稀疏自编码器/20260814-1.png)
+
+2000年后，自编码器开始流行，损失函数就是重构损失。SAE也随后出现，在重构损失的基础上加上了稀疏约束，也就是正则项。当时这类技术的主要的用处是学习表征和降维，并且强调的是“学到更有意义，更局部化的特征”。
+
+查阅一些资料和gpt以后，大致的解释是从当时的时代背景入手，当时机器学习普遍使用人工特征，无论是推荐系统的组合特征还是CV里的SIFT/HOG，因此当时的很多研究都尝试研究如何自动学习特征。自编码器是其中一个路线：如果只是单纯要图片重建准确，模型会学到一些没用的表征信息，因此要求稀疏性，强制输入只使用少量加权激活值，来保证学到重要的信息。
+
+当时的用法是，先用大量的图片，无监督的训练出一个SAE，这个SAE学到了大量图片的表征，然后再拿一些有标签的图片，将原始图片传给SAE，输出表征向量后，再用SVM做分类任务。
+
+---
+
+### 为什么不直接拿 1 万张图片训练 SVM？
+
+GPT：这正是当年的关键问题。传统 SVM 如果直接吃源像素，这些源像素对分类不一定是好的表征。以前人们会人工设计HOG和SIFT，而SAE用无监督学习中间表征来解决这个问题。
+
+这里随后我又提出，这个有点像CNN+Embedding的范式，GPT认为有区别，在于SAE是自监督的学embedding。
+
+---
+
+
+## 可解释性与哲学
+
+深度学习在2010年后继续狂奔，走到2020年后遇到了可解释性的难题，最主要的问题是：如何区分一个**神经元**（neuron）可能对好几个**主题特征**（feature）都有响应，可能对某个动物名次或毫不相干的技术名词有响应，这个现象被称为**多语义**（polysemanticity），理论对此的解释是**超完备表示**（superposition）：模型需要表达的潜在的特征数量远大于神经元数量。
+
+Transformer结构的网络会在有限的 d-维空间里，通过有限数量的神经元组成的 d 维空间中的不同方向，叠加表示大量特征，一个特征由多个神经元表示。
+
+如果模型只有4096维的可表示空间，需要表示100000个潜在主题特征，那模型就会用不同维度的neural，通过激活值加权排列组合，来表示不同的主题特征：$$h \approx a_1 f_1 + a_2 f_2 + \cdots + a_N f_N$$
+
+一个特征是由多个维度的神经元进行表示的，例如Python可能被表示为$$(-0.17,0.03,0.22,...,-0.11) $$，DNA可能表示为$$(0.02,-0.13,0.41,...,0.08)$$。
+
+既然是加权值，那么权重就有各自的侧重，具体到某个具体的主题特征，可能只有某几个神经元的值非零。这个观测到的，一个神经元参与多个主题特征的表示，就是多语义。SAE做的事就是试图将这个4096维的激活值还原。
+
+---
+
+我尝试用embeding去理解：
+
+**“那embedding不就是这样吗？本来一个feature就是高维度向量，所以是因为feature太多，one hot不了，所以有了embedding，embedding不好解释，所以有了sae？”**
+
+GPT再次给出解释：
+
+“你的直觉已经非常接近了，但要修正一个关键点：
+
+**Embedding 和 superposition 的数学形式确实很像，但“token 太多所以不能 one-hot → embedding”和“feature 太多所以不能一个 neuron 一个 feature → superposition”是两个不同层次的问题。**”
+
+可以把它们看成非常漂亮的类比。Embedding要解决的是token太多，为大量离散对象找低维稠密表示。
+
+**Superposition**是为了解决内部主题特征太多，有很多潜在的语义要表示。如果采用one hot式的神经元表示，表现不完所有主题特征，因此出现大量的主题特征被低维稠密表示。
+
+**重要区别：embedding 是“对象 → vector”，superposition 是“多个特征 → 同一个 vector”**。token embedding是一个token查出一个embedding vector，而hidden state是多个激活features的叠加。
+
+理想情况下，我们看到一个特征：French的向量是$$z=[0.17,-1.21,0.38,0.92,\dots,0.8,\dots]$$，我们不知道每个数字是什么，但是我们希望用SAE还原这个向量到一个新的坐标系下的$$z=[0,0,0,1.7,0,\dots,0.8,\dots]$$，这样能看到只有少数几个特征被激活。
+
+我们假定这个理想情况下，还原出来的这个新坐标系下的向量，实际上是one hot的，可以做到每个维度对应一个feature，例如第1837维代表city，第2000维代表Europe，少数几个维度组合成零最终的French。
+
+因此**embedding 是把很多东西压进低维 distributed space；SAE 则刚好反过来，试图把这个 distributed space 再展开成稀疏的特征空间（sparse feature space）。**
+
+---
+
+我接下来的疑问：“既然做不到恢复one hot，那就算还原出sparse space，人类还是不理解”
+
+gpt：
+
+这正是 SAE 可解释性最关键的“最后一公里”问题。我们只知道：feature 1837 激活了 2.7，但不知道feature 1837 到底是什么？
+
+真正的流程是：大语言模型用SAE还原为sparse features后，分析每个feature在什么输入上激活，以此为它赋予语义解释。
+
+例如，训练完 SAE 后发现 feature #1837。研究者把大量文本送给模型，然后找到能够让这个特征激活值最大的输入文本：$$ \operatorname{TopActivations}(z_{1837}) $$
+
+结果发现它最强的输入都是：
+
+“He moved to **San Francisco** in 2019.”
+
+“The population of **New York City** increased…”
+
+“She currently lives in **Tokyo**.”
+
+“**Paris** is the capital of France.”
+
+然后人类或者另一个 LLM 看这些 examples就可能得到总结：$${\text{Feature 1837 ≈ city names / cities}}$$ 
+
+**而且你继续追问下去，会碰到 SAE 最大的问题**，假设：feature #1837 在Paris，Tokyo，London，Madrid上都有激活，我们说他表示city，但实际上它可能也表示地名，或者大城市，或者首都相关的文本，甚至可能是自然语言无法描述的概念。因此，sae还原出的feature，并不能严格说就是人类可解释的的feature。
+
+---
+
+问到这里，事情变得更有趣了，我能想到了语言学和跨文化研究在这方面肯定有很多共通的概念，从数学层面去描述一个抽象的概念。
+
+有一门学科叫**语料库语言学**，研究者不知道一个词的确切使用语义，比如研究 `home` 在不同文化里的含义，那么就会用海量的真实语料去查home，观测在所有位置的上下文语境，根据大量上下文推断：$$\text{home} \approx \text{居住地 + 家庭 + 归属感 + 故乡 + 安全感}$$。
+
+> “You shall know a word by the company it keeps.”
+
+这句话就是语言学里的一个著名思想。而NLP后续发展的重要概念，Word2Vec / embedding，就是沿着这个思路发展出来的研究。
+
+不同的学科在同一个思想下产生了交集，有趣，有趣。甚至机器学习走到可解释性时，已经从简单的理论技术问题，走到了语言学，认知科学，甚至哲学。
+
+## LLM与SAE
+
+2023年的一篇论文：Sparse Autoencoders Find Highly Interpretable Features in Language Models，将SAE和当下最热的LLM关联起来。他们提出用 SAE 重建语言模型内部 activation，来恢复大语言模型中更可解释的特征。
+
+Anthropic在23年10月也在一篇[博文](https://transformer-circuits.pub/2023/monosemantic-features/index.html)内，对这个方向进行了阐述。他们将Transformer的激活值通过SAE还原成几十万个latent features的细分维度，这是大语言模型时代可解释性的一个里程碑发现。
+
+### 训练LLM的SAE
+
+![稀疏自编码器](/_posts/理解稀疏自编码器/20260814-2.png)
+
+传统 AE 经常通过低维网络学习压缩表征；VAE 则进一步对隐藏层加概率约束。现代的SAE思路不一样，它通常采用过完备的潜在空间（**overcomplete latent space**），即隐藏层维度远大于输入的激活值维度，中间这个环节不是压缩，而是扩大维度，为可能远多于原始维度的 latent features 提供一个 overcomplete dictionary。<Sidenote id="4">2025年的一篇[综述](https://www.alphaxiv.org/zh/abs/2503.05613)解释为：过完备性：SAE学习一个包含m个特征的字典，其中m >> d（输入维度）。这使得模型能够表示比神经元数量更多的概念，从而有效地逆转了导致单个神经元多义性的叠加现象。</Sidenote>
+
+> [ultralytics](https://www.ultralytics.com/zh/glossary/sparse-autoencoders-sae)提供了一个更好的说法：与降低维度的标准压缩不同，SAE 通常使用“超完备”隐藏层，这意味着隐藏层中的神经元比输入层中的更多。这提供了一个庞大的特征词典，但稀疏性约束确保了只有少数特征被选中来描述任何特定的输入。
+>
+> 特征解耦：在复杂模型中，单个神经元通常编码多个不相关的概念（这一现象称为叠加）。SAE 有助于解耦这些概念，并将它们分配给不同的特征。
+
+例如我们想要研究一个LLM中一个Transformer的第 20 层。将一系列文本，tokenizer后送进LLM，假设这层有4096维，每个token都会产生4096维的激活值，跑几十亿个 token，就能得到一个巨大的激活值的数据集，这个数据集就是SAE要学习和还原的目标。
+
+用一个独立的模型作为SAE，它的输入是token id经过LLM后产生的激活值向量，中间通过encoder扩大到假定10w维，然后再通过decoder还原成vector，损失函数用重建损失和稀疏损失。
+
+完整数据流是：Raw Text -> Tokenizer -> Token IDs -> LLM -> Layer 20  activation -> SAE
+
+训练完成SAE后，再将大量文本经过 LLM 和 SAE，统计每个sparse feature在哪些 token/context 上具有最高 activation。通过分析这些高激活样本的共同语义模式，来判断这个维度的具体含义<Sidenote id="5">这种偏向启发和经验式的判断，并不是一个很科学的方案。知乎上的一篇[文章](https://zhuanlan.zhihu.com/p/712810546)这么评论：使用 SAE 的一大主要难题是评估。我们可以训练稀疏自编码器来解释语言模型，但我们没有自然语言表示的可度量的底层 ground truth。目前而言，评估都很主观，基本也就是「我们研究一系列特征的激活输入，然后凭直觉阐述这些特征的可解释性。」这是可解释性领域的主要限制。</Sidenote>。
+
+![](/_posts/理解稀疏自编码器/20260813.jpeg)
+
+在具体的，现有的一些探索性应用上，假设模型经常虚构引用某一篇论文，可能能找到某些SAE features（例如#1873）特别容易在输入是以下的情况下激活：虚构作者名，虚构论文标题 ...，因此可以提出假设：feature #1873和虚构论文有关。研究人员就可以选择性地激活或抑制#1873来引导模型响应。
+
+![](/_posts/理解稀疏自编码器/20260813-2.jpeg)
+
+### 基础SAE的实现
+
+这是一个基础SAE的实现，本质上就是一个升降维网络。
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class SparseAutoencoder(nn.Module):
+    def __init__(self, input_dim, hidden_dim):
+        super().__init__()
+        # encoder
+        self.encoder = nn.Linear(input_dim, hidden_dim)
+        # decoder
+        self.decoder = nn.Linear(hidden_dim, input_dim)
+
+    def forward(self, x):
+        # 激活
+        latent = F.relu(self.encoder(x))
+        # decoder重建
+        reconstruction = self.decoder(latent)
+        return reconstruction, latent
+
+
+# 示例用法
+model = SparseAutoencoder(input_dim=784, hidden_dim=1024)
+dummy_input = torch.randn(1, 784)
+recon, latent_acts = model(dummy_input)
+
+# 训练过程中会在loss上加上激活值的平均绝对值和l1正则
+# loss = reconstruction_loss + lambda * torch.mean(torch.abs(latent_acts))
+print(f"Latent representation shape: {latent_acts.shape}")
+```
+
+2026/8/12 于苏州
+
+
+
+
+
+
+
+
+
