@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>访问数据看板 · zerolovesea.top</title>
+<style>
+	:root {
+		--bg: #0f1115;
+		--card: #171a21;
+		--border: #262b36;
+		--text: #e6e8ec;
+		--muted: #9aa3b2;
+		--accent: #d2ff50;
+	}
+	* { box-sizing: border-box; }
+	body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+	.wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 80px; }
+	header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+	h1 { font-size: 20px; margin: 0; font-weight: 700; }
+	.meta { color: var(--muted); font-size: 12px; font-weight: 400; margin-left: 8px; }
+	.note { margin: 8px 2px 0; }
+	button { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+	button:hover { border-color: var(--accent); }
+	.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+	.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+	.card .num { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+	.card .lbl { color: var(--muted); font-size: 12px; margin-top: 2px; }
+	.card .sub { color: var(--muted); font-size: 12px; margin-top: 2px; border-top: 1px solid var(--border); padding-top: 6px; margin-top: 8px; }
+	.card .sub b { color: var(--text); font-variant-numeric: tabular-nums; }
+	.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 20px 0 8px; }
+	.tabs button.active { border-color: var(--accent); color: var(--accent); }
+	.section { margin-top: 20px; }
+	.section h2 { font-size: 13px; color: var(--muted); font-weight: 600; margin: 0 0 8px; letter-spacing: 0.04em; }
+	.chart { background: var(--card); border: 1px solid var(--border); border-radius: 12px; width: 100%; }
+	#chart-timeline { height: 300px; }
+	#chart-calendar { height: 210px; }
+	.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 8px; }
+	.grid .chart { height: 320px; }
+	.error { color: #ff8a8a; }
+	.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+	<header>
+		<h1>访问数据看板<span class="meta" id="generated"></span></h1>
+		<button id="refresh">刷新数据（约 5 秒）</button>
+	</header>
+	<div id="error"></div>
+
+	<div class="cards" id="cards"></div>
+
+	<div class="section">
+		<h2>访问时间分布</h2>
+		<div id="chart-timeline" class="chart"></div>
+		<p class="meta note">独立访客 = 按浏览器匿名访客 ID 去重，每个数据桶内精确统计。</p>
+	</div>
+
+	<div class="section">
+		<h2>近 90 天日历热力图（本地日期）</h2>
+		<div id="chart-calendar" class="chart"></div>
+	</div>
+
+	<div class="tabs" id="tabs"></div>
+
+	<div class="grid">
+		<div class="chart" id="chart-country"></div>
+		<div class="chart" id="chart-language"></div>
+		<div class="chart" id="chart-city"></div>
+		<div class="chart" id="chart-posts"></div>
+	</div>
+</div>
+
+<script src="/vendor/echarts.min.js"></script>
+<script>
+	const WINDOWS = ["近24小时", "今天", "近7天", "近15天", "近30天", "近半年"];
+	const CHARTS = ["country", "language", "city", "posts"];
+	const PANEL_TITLES = { country: "国家分布", language: "语言分布", city: "城市分布", posts: "帖子分布" };
+	const COLORS = ["#d2ff50", "#7fd6ff", "#ffb86b", "#ff7ab8", "#c4a7ff", "#86efac", "#fca5a5", "#fde68a", "#a5b4fc", "#f0abfc", "#5eead4", "#fdba74"];
+	const AXIS = {
+		axisLine: { lineStyle: { color: "#3a4356" } },
+		axisTick: { show: false },
+		splitLine: { lineStyle: { color: "#1f2631" } },
+	};
+	const TOOLTIP = {
+		backgroundColor: "#171a21",
+		borderColor: "#262b36",
+		textStyle: { color: "#e6e8ec" },
+		extraCssText: "border-radius:8px;box-shadow:none;",
+	};
+
+	let data = null;
+	let active = 0;
+	const charts = {};
+
+	function initCharts() {
+		charts.timeline = echarts.init(document.getElementById("chart-timeline"));
+		charts.calendar = echarts.init(document.getElementById("chart-calendar"));
+		CHARTS.forEach((k) => {
+			charts[k] = echarts.init(document.getElementById("chart-" + k));
+		});
+	}
+
+	function fmt(n) { return (n ?? 0).toLocaleString("zh-CN"); }
+
+	async function load(refresh) {
+		const res = await fetch(refresh ? "/api/data?refresh=1" : "/api/data");
+		const d = await res.json();
+		if (d.error) {
+			document.getElementById("error").innerHTML = '<p class="error">加载失败：' + d.error + "</p>";
+			return;
+		}
+		data = d;
+		render();
+	}
+
+	function render() {
+		document.getElementById("generated").textContent = "更新于 " + new Date(data.generatedAt).toLocaleString();
+
+		document.getElementById("cards").innerHTML = WINDOWS.map(function (w) {
+			const entry = data.windows[w] || {};
+			const v = entry.visits || 0;
+			const u = entry.visitors || 0;
+			return '<div class="card"><div class="num">' + fmt(v) +
+				'</div><div class="lbl">' + w + ' · 访问次数</div>' +
+				'<div class="sub">独立访客 <b>' + fmt(u) + "</b></div></div>";
+		}).join("");
+
+		document.getElementById("tabs").innerHTML = WINDOWS.map(function (w, i) {
+			return '<button class="' + (i === active ? "active" : "") + '" data-i="' + i + '">' + w + "</button>";
+		}).join("");
+		Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b) {
+			b.addEventListener("click", function () {
+				active = Number(b.getAttribute("data-i"));
+				render();
+			});
+		});
+
+		renderTimeline();
+		renderCalendar();
+		CHARTS.forEach(renderDistribution);
+	}
+
+	function renderTimeline() {
+		const w = data.windows[WINDOWS[active]];
+		charts.timeline.setOption({
+			backgroundColor: "transparent",
+			tooltip: Object.assign({ trigger: "axis" }, TOOLTIP),
+			legend: { top: 0, right: 8, textStyle: { color: "#9aa3b2" }, itemWidth: 14, itemHeight: 8, data: ["访问次数", "独立访客"] },
+			grid: { left: 8, right: 16, top: 32, bottom: 8, containLabel: true },
+			xAxis: Object.assign({ type: "category", boundaryGap: false, data: w.timeseries.labels }, AXIS, { axisLabel: { color: "#9aa3b2", hideOverlap: true } }),
+			yAxis: Object.assign({ type: "value", minInterval: 1 }, AXIS),
+			series: [
+				{
+					name: "访问次数",
+					type: "line",
+					data: w.timeseries.values,
+					smooth: true,
+					symbol: "none",
+					lineStyle: { color: "#d2ff50", width: 2 },
+					areaStyle: {
+						color: {
+							type: "linear", x: 0, y: 0, x2: 0, y2: 1,
+							colorStops: [
+								{ offset: 0, color: "rgba(210,255,80,0.30)" },
+								{ offset: 1, color: "rgba(210,255,80,0.02)" },
+							],
+						},
+					},
+				},
+				{
+					name: "独立访客",
+					type: "line",
+					data: w.timeseries.uniques,
+					smooth: true,
+					symbol: "none",
+					lineStyle: { color: "#7fd6ff", width: 2 },
+				},
+			],
+		});
+	}
+
+	function renderCalendar() {
+		const entries = data.calendar || [];
+		const maxVal = Math.max.apply(null, entries.map(function (e) { return e[1]; }));
+		charts.calendar.setOption({
+			backgroundColor: "transparent",
+			tooltip: Object.assign({
+				formatter: function (p) {
+					return p.value[0] + "<br/>访问 " + fmt(p.value[1]);
+				},
+			}, TOOLTIP),
+			visualMap: {
+				min: 0,
+				max: maxVal > 0 ? maxVal : 1,
+				calculable: false,
+				orient: "horizontal",
+				left: "center",
+				bottom: 0,
+				inRange: { color: ["#1a1f2a", "#3f4d33", "#8fbf3a", "#d2ff50"] },
+				textStyle: { color: "#9aa3b2" },
+			},
+			calendar: {
+				range: [entries[0][0], entries[entries.length - 1][0]],
+				cellSize: ["auto", 14],
+				itemStyle: { color: "#171a21", borderColor: "#0f1115", borderWidth: 2 },
+				dayLabel: { color: "#9aa3b2", firstDay: 1 },
+				monthLabel: { color: "#9aa3b2", formatter: "{yyyy}-{MM}" },
+				splitLine: { lineStyle: { color: "#262b36" } },
+				yearLabel: { show: false },
+			},
+			series: [{
+				type: "heatmap",
+				coordinateSystem: "calendar",
+				data: entries,
+			}],
+		});
+	}
+
+	function renderDistribution(key) {
+		const w = data.windows[WINDOWS[active]];
+		const rows = w[key] || [];
+		if (key === "posts" || key === "city") {
+			charts[key].setOption({
+				backgroundColor: "transparent",
+				title: { text: PANEL_TITLES[key], left: 12, top: 8, textStyle: { color: "#9aa3b2", fontSize: 13, fontWeight: 600 } },
+				tooltip: Object.assign({ trigger: "axis", axisPointer: { type: "shadow" } }, TOOLTIP),
+				grid: { left: 8, right: 48, top: 40, bottom: 8, containLabel: true },
+				xAxis: Object.assign({ type: "value", minInterval: 1 }, AXIS),
+				yAxis: Object.assign({ type: "category", inverse: true, data: rows.map(function (r) { return r.k || "未知"; }) }, AXIS, { axisLabel: { color: "#9aa3b2", width: 90, overflow: "truncate" }, splitLine: { show: false } }),
+				series: [{
+					type: "bar",
+					data: rows.map(function (r) { return r.n; }),
+					barWidth: "55%",
+					itemStyle: { color: "#d2ff50", borderRadius: [0, 3, 3, 0] },
+					label: { show: true, position: "right", color: "#9aa3b2" },
+				}],
+			});
+		} else {
+			charts[key].setOption({
+				backgroundColor: "transparent",
+				title: { text: PANEL_TITLES[key], left: 12, top: 8, textStyle: { color: "#9aa3b2", fontSize: 13, fontWeight: 600 } },
+				tooltip: Object.assign({ trigger: "item" }, TOOLTIP),
+				color: COLORS,
+				legend: { type: "scroll", orient: "vertical", right: 8, top: "middle", textStyle: { color: "#9aa3b2" }, itemWidth: 10, itemHeight: 10, icon: "circle" },
+				series: [{
+					type: "pie",
+					radius: ["42%", "68%"],
+					center: ["36%", "52%"],
+					avoidLabelOverlap: true,
+					itemStyle: { borderColor: "#0f1115", borderWidth: 2 },
+					label: { color: "#9aa3b2", formatter: "{b}\n{d}%" },
+					labelLine: { lineStyle: { color: "#3a4356" } },
+					data: rows.map(function (r) { return { name: r.k || "未知", value: r.n }; }),
+				}],
+			});
+		}
+	}
+
+	document.getElementById("refresh").addEventListener("click", function () { load(true); });
+	window.addEventListener("resize", function () {
+		Object.keys(charts).forEach(function (k) { charts[k].resize(); });
+	});
+	initCharts();
+	load(false);
+</script>
+</body>
+</html>

@@ -33,6 +33,17 @@
 			localStorage.getItem(OPTOUT_KEY) === "1" ||
 			document.cookie.includes(`${OPTOUT_KEY}=1`);
 
+		// Anonymous visitor id (persisted) so the dashboard can separate
+		// 访问次数 (visits) from 独立访客 (unique visitors).
+		const VISITOR_KEY = "viewer_id";
+		let visitorId = localStorage.getItem(VISITOR_KEY);
+		if (!visitorId) {
+			visitorId =
+				crypto.randomUUID?.() ??
+				`v-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+			localStorage.setItem(VISITOR_KEY, visitorId);
+		}
+
 		// Canonical slug: "/en/写在第一天/" and "/写在第一天/" both -> "写在第一天".
 		let slug = window.location.pathname
 			.replace(/^\/en(?=\/|$)/, "")
@@ -58,7 +69,7 @@
 		fetch("/api/view", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ slug }),
+			body: JSON.stringify({ slug, visitorId }),
 			keepalive: true,
 		})
 			.then((r) => r.json() as Promise<{ count?: number }>)

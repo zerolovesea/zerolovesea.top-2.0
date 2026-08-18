@@ -59,6 +59,31 @@ async function increment(env, slug) {
 	return results[0]?.count ?? 0;
 }
 
+// Best-effort raw visit log: timestamp, country/city (Cloudflare IP
+// geolocation), the reader's browser language (Accept-Language header) and an
+// anonymous visitor id (random UUID from the client, used for unique-visitor
+// counts). Never stores the raw IP. Failure here must never break counting.
+async function logVisit(env, request, slug, visitorId) {
+	const cf = request.cf ?? {};
+	const language =
+		(request.headers.get("accept-language") ?? "")
+			.split(",")[0]
+			?.trim()
+			.slice(0, 32) || null;
+	await env.DB.prepare(
+		"INSERT INTO visits (slug, viewed_at, country, city, language, visitor_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+	)
+		.bind(
+			slug,
+			new Date().toISOString(),
+			cf.country ?? null,
+			cf.city ?? null,
+			language,
+			visitorId,
+		)
+		.run();
+}
+
 function json(data, status = 200) {
 	return new Response(JSON.stringify(data), {
 		status,
@@ -90,6 +115,10 @@ export default {
 			const body = await readJson(request);
 			const slug = normalizeSlug(body?.slug);
 			if (!slug) return json({ error: "slug required" }, 400);
+			const visitorId =
+				typeof body?.visitorId === "string"
+					? body.visitorId.slice(0, 64) || null
+					: null;
 
 			const optedOut = (request.headers.get("cookie") ?? "").includes(
 				`${OPTOUT_COOKIE}=1`,
@@ -101,7 +130,9 @@ export default {
 				return json({ count: await getCount(env, slug) });
 			}
 
-			return json({ count: await increment(env, slug) });
+			const count = await increment(env, slug);
+			await logVisit(env, request, slug, visitorId).catch(() => {});
+			return json({ count });
 		}
 
 		return new Response("Method Not Allowed", { status: 405 });

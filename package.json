@@ -9,6 +9,7 @@
 		"preview": "bun run astro preview",
 		"astro": "./node_modules/.bin/astro",
 		"new": "bun scripts/new-post.ts",
+		"analytics": "bun scripts/analytics-server.ts",
 		"s": "bun run astro dev",
 		"d": "bun run build && git add -A && git commit -m \"deploy: update site\" && git push origin main",
 		"test:reading-time": "bun scripts/test-reading-time.ts",
@@ -32,6 +33,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.7.2",
-		"@tailwindcss/typography": "^0.5.20"
+		"@tailwindcss/typography": "^0.5.20",
+		"echarts": "^6.1.0"
 	}
 }
