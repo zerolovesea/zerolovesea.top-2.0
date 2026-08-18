@@ -1,0 +1,28 @@
+{
+	"name": "zerolovesea-view-counter",
+	"main": "src/index.js",
+	"compatibility_date": "2026-07-23",
+	"routes": [
+		{
+			"pattern": "zerolovesea.top/api/*",
+			"zone_name": "zerolovesea.top"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "zerolovesea-view-counter",
+			"database_id": "29c15f27-121d-4e3c-8670-fecbe83ced4e"
+		},
+		{
+			"binding": "zerolovesea_view_counter",
+			"database_name": "zerolovesea-view-counter",
+			"database_id": "29c15f27-121d-4e3c-8670-fecbe83ced4e",
+			"remote": true
+		}
+	],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 0.1
+	}
+}

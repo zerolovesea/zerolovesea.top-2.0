@@ -5,3 +5,4 @@ export { default as Dots } from "./dots.astro";
 export { default as ScrollProgress } from "./scroll-progress.astro";
 export { default as ThemeSwitcher } from "./theme-switcher.astro";
 export { default as ReadingAnalytics } from "./reading-analytics.astro";
+export { default as ViewCount } from "./view-count.astro";

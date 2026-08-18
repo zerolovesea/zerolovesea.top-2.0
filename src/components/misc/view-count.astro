@@ -1,0 +1,68 @@
+---
+// Client-side view counter. Derives the canonical slug from the URL path
+// (strips the /en/ prefix and slashes) so the Chinese and English versions of
+// the same post share one counter. Renders "… reads" until the worker responds.
+---
+<p
+	data-view-count
+	class='text-start text-gray-500 font-medium'
+	aria-label='view count'
+	title='view count'>
+	…
+</p>
+
+<script>
+	(() => {
+		const el = document.querySelector("[data-view-count]");
+		if (!el) return;
+
+		const OPTOUT_KEY = "view_optout";
+
+		// Opt out via a secret URL: /?noread=1 (or any page with ?noread=1).
+		// Sets both localStorage and a cookie so the worker can skip server-side too.
+		const params = new URLSearchParams(window.location.search);
+		if (params.get("noread") === "1") {
+			localStorage.setItem(OPTOUT_KEY, "1");
+			document.cookie = `${OPTOUT_KEY}=1; max-age=31536000; path=/; samesite=lax`;
+			const clean = new URL(window.location.href);
+			clean.searchParams.delete("noread");
+			history.replaceState(null, "", clean);
+		}
+
+		const optedOut =
+			localStorage.getItem(OPTOUT_KEY) === "1" ||
+			document.cookie.includes(`${OPTOUT_KEY}=1`);
+
+		// Canonical slug: "/en/写在第一天/" and "/写在第一天/" both -> "写在第一天".
+		let slug = window.location.pathname
+			.replace(/^\/en(?=\/|$)/, "")
+			.replace(/^\/+|\/+$/g, "");
+		try {
+			slug = decodeURIComponent(slug);
+		} catch {}
+
+		const render = (n: number) => {
+			el.textContent = `${n} reads`;
+		};
+
+		if (optedOut) {
+			// Don't count our own visits, but still show the live number.
+			fetch(`/api/view?slug=${encodeURIComponent(slug)}`)
+				.then((r) => r.json() as Promise<{ count?: number }>)
+				.then((d) => render(d.count ?? 0))
+				.catch(() => {});
+			return;
+		}
+
+		// Count every valid page load and show the fresh total.
+		fetch("/api/view", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ slug }),
+			keepalive: true,
+		})
+			.then((r) => r.json() as Promise<{ count?: number }>)
+			.then((d) => render(d.count ?? 0))
+			.catch(() => {});
+	})();
+</script>

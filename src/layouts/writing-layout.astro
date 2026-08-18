@@ -1,5 +1,5 @@
 ---
-import { Header, ReadingAnalytics } from "@components/misc";
+import { Header, ReadingAnalytics, ViewCount } from "@components/misc";
 import FormattedDate from "@components/misc/formatted-date.astro";
 import { BaseHead } from "@components/seo";
 import RootLayout from "@layouts/root-layout.astro";
@@ -48,6 +48,8 @@ const { title, description, pubDate, updatedDate, readingTime } = Astro.props;
 					<p class='text-start text-gray-500 font-medium'>
 						{readingTime} min read
 					</p>
+					<span class='text-gray-500 font-medium'>·</span>
+					<ViewCount />
 				</div>
 				<p
 					class='w-full max-w-xl text-start font-medium text-gray-700 dark:text-gray-300 text-lg leading-relaxed'>
