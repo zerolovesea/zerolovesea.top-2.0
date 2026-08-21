@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 const DB_NAME = process.env.D1_DB ?? "zerolovesea-view-counter";
 const PORT = Number(process.env.PORT ?? 8788);
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 60 * 60 * 1000; // refresh at most once per hour; manual button bypasses
 
 // Run wrangler from the view-counter dir so the D1 binding resolves.
 const WORKER_DIR = fileURLToPath(new URL("../workers/view-counter/", import.meta.url));
@@ -51,9 +51,11 @@ function wranglerCommand(): { bin: string; prefix: string[] } {
 function runWrangler(args: string[]): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const { bin, prefix } = wranglerCommand();
+		// Spawn with the caller's full environment and NO `CI`, so wrangler uses
+		// the machine's cached OAuth login instead of demanding an API token.
 		const child = spawn(bin, [...prefix, ...args], {
 			cwd: WORKER_DIR,
-			env: { ...process.env, CI: "1" },
+			env: process.env,
 		});
 		let out = "";
 		let err = "";
@@ -68,26 +70,37 @@ function runWrangler(args: string[]): Promise<string> {
 }
 
 export async function runStatements(statements: string[]): Promise<Row[][]> {
-	const out = await runWrangler([
-		"d1",
-		"execute",
-		DB_NAME,
-		"--command",
-		statements.join(";\n"),
-		"--remote",
-		"--json",
-	]);
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(out);
-	} catch {
-		throw new Error(`无法解析 wrangler 输出：${out.slice(0, 500)}`);
+	// Cloudflare's D1 API can throw transient errors (e.g. code 7403) under
+	// load; retry once before giving up so the dashboard doesn't blank out.
+	let lastErr: unknown;
+	for (let attempt = 0; attempt < 2; attempt++) {
+		if (attempt > 0) await new Promise((r) => setTimeout(r, 800));
+		try {
+			const out = await runWrangler([
+				"d1",
+				"execute",
+				DB_NAME,
+				"--command",
+				statements.join(";\n"),
+				"--remote",
+				"--json",
+			]);
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(out);
+			} catch {
+				throw new Error(`无法解析 wrangler 输出：${out.slice(0, 500)}`);
+			}
+			const list = Array.isArray(parsed) ? parsed : [parsed];
+			return list.map((item) => {
+				const r = item as { results?: Row[] };
+				return Array.isArray(r?.results) ? r.results : [];
+			});
+		} catch (e) {
+			lastErr = e;
+		}
 	}
-	const list = Array.isArray(parsed) ? parsed : [parsed];
-	return list.map((item) => {
-		const r = item as { results?: Row[] };
-		return Array.isArray(r?.results) ? r.results : [];
-	});
+	throw lastErr;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,28 +137,42 @@ const GRANULARITY: Record<string, Granularity> = {
 	"近半年": "day",
 };
 
-const METRICS: { key: "country" | "city" | "language" | "posts"; stmt: (since: string) => string }[] = [
+// Per-window distribution queries, capped at a comfortable ceiling. The
+// frontend reveals extra rows via a "show more" control (page-in with an
+// offset). Set to -1 to disable the cap.
+const RANK_LIMIT = 50;
+const LIMIT_CLAUSE = (limit: number, offset: number) =>
+	limit < 0 ? "" : ` LIMIT ${limit} OFFSET ${offset}`;
+
+const METRICS: {
+	key: "country" | "city" | "language" | "posts";
+	stmt: (since: string, until?: string, limit?: number, offset?: number) => string;
+}[] = [
 	{
 		key: "country",
-		stmt: (s) =>
-			`SELECT country AS k, COUNT(*) AS n FROM visits WHERE viewed_at >= '${s}' GROUP BY country ORDER BY n DESC LIMIT 15`,
+		stmt: (s, u, limit = RANK_LIMIT, offset = 0) =>
+			`SELECT country AS k, COUNT(*) AS n FROM visits WHERE viewed_at >= '${s}'${untilClause(u)} GROUP BY country ORDER BY n DESC${LIMIT_CLAUSE(limit, offset)}`,
 	},
 	{
 		key: "city",
-		stmt: (s) =>
-			`SELECT city AS k, COUNT(*) AS n FROM visits WHERE viewed_at >= '${s}' AND city IS NOT NULL GROUP BY city ORDER BY n DESC LIMIT 15`,
+		stmt: (s, u, limit = RANK_LIMIT, offset = 0) =>
+			`SELECT city AS k, COUNT(*) AS n, COUNT(DISTINCT visitor_id) AS u FROM visits WHERE viewed_at >= '${s}'${untilClause(u)} AND city IS NOT NULL GROUP BY city ORDER BY n DESC${LIMIT_CLAUSE(limit, offset)}`,
 	},
 	{
 		key: "language",
-		stmt: (s) =>
-			`SELECT language AS k, COUNT(*) AS n FROM visits WHERE viewed_at >= '${s}' AND language IS NOT NULL GROUP BY language ORDER BY n DESC LIMIT 15`,
+		stmt: (s, u, limit = RANK_LIMIT, offset = 0) =>
+			`SELECT language AS k, COUNT(*) AS n FROM visits WHERE viewed_at >= '${s}'${untilClause(u)} AND language IS NOT NULL GROUP BY language ORDER BY n DESC${LIMIT_CLAUSE(limit, offset)}`,
 	},
 	{
 		key: "posts",
-		stmt: (s) =>
-			`SELECT slug AS k, COUNT(*) AS n FROM visits WHERE viewed_at >= '${s}' GROUP BY slug ORDER BY n DESC LIMIT 20`,
+		stmt: (s, u, limit = RANK_LIMIT, offset = 0) =>
+			`SELECT slug AS k, COUNT(*) AS n, COUNT(DISTINCT visitor_id) AS u FROM visits WHERE viewed_at >= '${s}'${untilClause(u)} GROUP BY slug ORDER BY n DESC${LIMIT_CLAUSE(limit, offset)}`,
 	},
 ];
+
+function untilClause(until?: string): string {
+	return until ? ` AND viewed_at < '${until}'` : "";
+}
 
 // One row per visit over the whole range; everything time-based (line charts,
 // calendar, per-window visits/visitors) derives from it in JS.
@@ -164,12 +191,12 @@ export interface Timeseries {
 
 export interface DashboardData {
 	generatedAt: string;
-	calendar: [string, number][];
 	windows: Record<
 		string,
 		{
-			visits: number;
-			visitors: number;
+			visitors: number; // unique visitors (COUNT DISTINCT visitor_id)
+			visits: number; // sessions: 30-min inactivity gap ends a session
+			views: number; // page views (COUNT *)
 			timeseries: Timeseries;
 			country: Row[];
 			city: Row[];
@@ -177,6 +204,37 @@ export interface DashboardData {
 			posts: Row[];
 		}
 	>;
+}
+
+const SESSION_GAP_MS = 30 * 60 * 1000;
+
+// Count sessions: consecutive page views from the same visitor within 30
+// minutes belong to one session. Views without a visitor id count as their
+// own session (unattributable).
+function countSessions(inWindow: { time: Date; vid: string | null }[]): number {
+	const groups = new Map<string, Date[]>();
+	let unattributed = 0;
+	for (const v of inWindow) {
+		if (v.vid) {
+			let arr = groups.get(v.vid);
+			if (!arr) {
+				arr = [];
+				groups.set(v.vid, arr);
+			}
+			arr.push(v.time);
+		} else {
+			unattributed++;
+		}
+	}
+	let sessions = unattributed;
+	for (const times of groups.values()) {
+		times.sort((a, b) => a.getTime() - b.getTime());
+		sessions++; // first view opens a session
+		for (let i = 1; i < times.length; i++) {
+			if (times[i].getTime() - times[i - 1].getTime() > SESSION_GAP_MS) sessions++;
+		}
+	}
+	return sessions;
 }
 
 function hourLabel(d: Date): string {
@@ -191,7 +249,7 @@ function buildSeries(
 	hourCounts: Map<string, number>,
 	hourUniques: Map<string, Set<string>>,
 	windowStart: Date,
-	now: Date,
+	end: Date,
 	granularity: Granularity,
 ): Timeseries {
 	const start = new Date(windowStart);
@@ -200,7 +258,7 @@ function buildSeries(
 	if (granularity === "day") start.setHours(0, 0, 0, 0);
 
 	const hours: { d: Date; n: number; u: number }[] = [];
-	for (let d = new Date(start); d.getTime() <= now.getTime(); d = new Date(d.getTime() + HOUR_MS)) {
+	for (let d = new Date(start); d.getTime() <= end.getTime(); d = new Date(d.getTime() + HOUR_MS)) {
 		const key = localHourKey(d);
 		hours.push({ d: new Date(d), n: hourCounts.get(key) ?? 0, u: hourUniques.get(key)?.size ?? 0 });
 	}
@@ -229,24 +287,6 @@ function buildSeries(
 	return { labels, values, uniques };
 }
 
-function buildCalendar(hourCounts: Map<string, number>, now: Date, days = 90): [string, number][] {
-	const start = new Date(now);
-	start.setHours(0, 0, 0, 0);
-	start.setDate(start.getDate() - (days - 1));
-	const out: [string, number][] = [];
-	for (let d = new Date(start); d.getTime() <= now.getTime(); d = new Date(d.getTime() + DAY_MS)) {
-		const key = localDateKey(d);
-		let sum = 0;
-		for (let h = 0; h < 24; h++) sum += hourCounts.get(`${key}T${pad2(h)}`) ?? 0;
-		out.push([key, sum]);
-	}
-	return out;
-}
-
-function localDateKey(d: Date): string {
-	return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
 export async function buildDashboardData(
 	run: (statements: string[]) => Promise<Row[][]>,
 	now = new Date(),
@@ -256,27 +296,8 @@ export async function buildDashboardData(
 
 	// Per-visit rows over 180 days; exact counts and uniques derive from them.
 	const [[rows]] = await Promise.all([run([VISIT_ROWS_STMT(since180)])]);
-	const visits: { time: Date; vid: string | null }[] = [];
-	for (const r of rows ?? []) {
-		const time = new Date(String(r.t));
-		if (Number.isNaN(time.getTime())) continue;
-		visits.push({ time, vid: typeof r.v === "string" && r.v ? r.v : null });
-	}
-
-	const hourCounts = new Map<string, number>();
-	const hourUniques = new Map<string, Set<string>>();
-	for (const v of visits) {
-		const key = localHourKey(v.time);
-		hourCounts.set(key, (hourCounts.get(key) ?? 0) + 1);
-		if (v.vid) {
-			let set = hourUniques.get(key);
-			if (!set) {
-				set = new Set<string>();
-				hourUniques.set(key, set);
-			}
-			set.add(v.vid);
-		}
-	}
+	const visits = parseVisitRows(rows ?? []);
+	const { hourCounts, hourUniques } = indexVisits(visits);
 
 	const perMetric = await Promise.all(
 		METRICS.map(async (m) => ({
@@ -292,8 +313,9 @@ export async function buildDashboardData(
 		const visitors = new Set(inWindow.map((v) => v.vid).filter(Boolean)).size;
 		const series = buildSeries(hourCounts, hourUniques, new Date(w.since), now, GRANULARITY[w.label] ?? "day");
 		const entry = {
-			visits: inWindow.length,
 			visitors,
+			visits: countSessions(inWindow),
+			views: inWindow.length,
 			timeseries: series,
 			country: [],
 			city: [],
@@ -309,7 +331,104 @@ export async function buildDashboardData(
 	return {
 		generatedAt: now.toISOString(),
 		windows: out,
-		calendar: buildCalendar(hourCounts, now, 90),
+	};
+}
+
+// ---------------------------------------------------------------------------
+// Custom range support
+// ---------------------------------------------------------------------------
+
+function parseVisitRows(rows: Row[]): { time: Date; vid: string | null }[] {
+	const visits: { time: Date; vid: string | null }[] = [];
+	for (const r of rows) {
+		const time = new Date(String(r.t));
+		if (Number.isNaN(time.getTime())) continue;
+		visits.push({ time, vid: typeof r.v === "string" && r.v ? r.v : null });
+	}
+	return visits;
+}
+
+function indexVisits(visits: { time: Date; vid: string | null }[]) {
+	const hourCounts = new Map<string, number>();
+	const hourUniques = new Map<string, Set<string>>();
+	for (const v of visits) {
+		const key = localHourKey(v.time);
+		hourCounts.set(key, (hourCounts.get(key) ?? 0) + 1);
+		if (v.vid) {
+			let set = hourUniques.get(key);
+			if (!set) {
+				set = new Set<string>();
+				hourUniques.set(key, set);
+			}
+			set.add(v.vid);
+		}
+	}
+	return { hourCounts, hourUniques };
+}
+
+function windowEntry(
+	visits: { time: Date; vid: string | null }[],
+	hourCounts: Map<string, number>,
+	hourUniques: Map<string, Set<string>>,
+	start: Date,
+	end: Date,
+	granularity: Granularity,
+	perMetric: { key: "country" | "city" | "language" | "posts"; rows: Row[][] }[],
+): DashboardData["windows"][string] {
+	const visitors = new Set(visits.map((v) => v.vid).filter(Boolean)).size;
+	const entry = {
+		visitors,
+		visits: countSessions(visits),
+		views: visits.length,
+		timeseries: buildSeries(hourCounts, hourUniques, start, end, granularity),
+		country: [],
+		city: [],
+		language: [],
+		posts: [],
+	} as DashboardData["windows"][string];
+	for (const m of perMetric) {
+		(entry as Record<string, unknown>)[m.key] = m.rows[0] ?? [];
+	}
+	return entry;
+}
+
+function granularityForRange(start: Date, end: Date): Granularity {
+	const days = (end.getTime() - start.getTime()) / DAY_MS;
+	if (days <= 2) return "hour";
+	if (days <= 14) return "6h";
+	return "day";
+}
+
+export async function buildCustomWindow(
+	run: (statements: string[]) => Promise<Row[][]>,
+	start: Date,
+	end: Date,
+): Promise<{ generatedAt: string; start: string; end: string; windows: Record<string, DashboardData["windows"][string]> }> {
+	const startIso = start.toISOString();
+	const endIso = end.toISOString();
+
+	const [[rows]] = await Promise.all([
+		run([
+			`SELECT viewed_at AS t, visitor_id AS v FROM visits WHERE viewed_at >= '${startIso}' AND viewed_at < '${endIso}'`,
+		]),
+	]);
+	const visits = parseVisitRows(rows ?? []);
+	const { hourCounts, hourUniques } = indexVisits(visits);
+
+	const perMetric = await Promise.all(
+		METRICS.map(async (m) => ({
+			key: m.key,
+			rows: await run([m.stmt(startIso, endIso)]),
+		})),
+	);
+
+	return {
+		generatedAt: new Date().toISOString(),
+		start: startIso,
+		end: endIso,
+		windows: {
+			"自定义": windowEntry(visits, hourCounts, hourUniques, start, end, granularityForRange(start, end), perMetric),
+		},
 	};
 }
 
@@ -332,6 +451,30 @@ export function serve(
 			const url = new URL(req.url);
 
 			if (url.pathname === "/api/data") {
+				const startParam = url.searchParams.get("start");
+				const endParam = url.searchParams.get("end");
+
+				// Custom range: fresh query, no cache.
+				if (startParam && endParam) {
+					const start = new Date(startParam);
+					const end = new Date(endParam);
+					if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start.getTime() >= end.getTime()) {
+						return Response.json({ error: "无效的时间范围" }, { status: 400 });
+					}
+					if (end.getTime() - start.getTime() > 366 * DAY_MS) {
+						return Response.json({ error: "自定义范围最长 366 天" }, { status: 400 });
+					}
+					try {
+						const data = await buildCustomWindow(run, start, end);
+						return Response.json({ ...data, cached: false });
+					} catch (e) {
+						return Response.json(
+							{ error: e instanceof Error ? e.message : String(e) },
+							{ status: 500 },
+						);
+					}
+				}
+
 				const refresh = url.searchParams.get("refresh") === "1";
 				if (cache && !refresh && Date.now() - cache.at < CACHE_TTL_MS) {
 					return Response.json({ ...cache.data, cached: true });
@@ -340,6 +483,33 @@ export function serve(
 					const data = await buildDashboardData(run);
 					cache = { at: Date.now(), data };
 					return Response.json({ ...data, cached: false });
+				} catch (e) {
+					return Response.json(
+						{ error: e instanceof Error ? e.message : String(e) },
+						{ status: 500 },
+					);
+				}
+			}
+
+			if (url.pathname === "/api/ranking") {
+				const key = url.searchParams.get("k") as "posts" | "city" | null;
+				if (!key || !url.searchParams.has("start") || !url.searchParams.has("end")) {
+					return Response.json({ error: "缺少 k / start / end 参数" }, { status: 400 });
+				}
+				const start = new Date(url.searchParams.get("start")!);
+				const end = new Date(url.searchParams.get("end")!);
+				if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start.getTime() >= end.getTime()) {
+					return Response.json({ error: "无效的时间范围" }, { status: 400 });
+				}
+				const offParam = Number(url.searchParams.get("off") ?? 0);
+				const offset = Number.isFinite(offParam) && offParam >= 0 ? Math.floor(offParam) : 0;
+				let metric: (typeof METRICS)[number] | undefined;
+				for (const m of METRICS) if (m.key === key) metric = m;
+				if (!metric) return Response.json({ error: "未知的排序维度" }, { status: 400 });
+
+				try {
+					const [rows] = await run([metric.stmt(start.toISOString(), end.toISOString(), undefined, offset)]);
+					return Response.json({ key, rows: rows ?? [], offset, start: start.toISOString(), end: end.toISOString() });
 				} catch (e) {
 					return Response.json(
 						{ error: e instanceof Error ? e.message : String(e) },
@@ -366,7 +536,7 @@ export function serve(
 		},
 	});
 
-	console.log(`访问数据看板: http://127.0.0.1:${server.port}`);
+	console.log(`ZeroDash: http://127.0.0.1:${server.port}`);
 	return server;
 }
 

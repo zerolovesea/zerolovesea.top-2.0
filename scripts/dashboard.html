@@ -3,103 +3,251 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>访问数据看板 · zerolovesea.top</title>
+<title>ZeroDash · ZeroLoveSeA</title>
 <style>
+	/* ——— design tokens — synced with zerolovesea.top ——— */
 	:root {
-		--bg: #0f1115;
-		--card: #171a21;
-		--border: #262b36;
-		--text: #e6e8ec;
-		--muted: #9aa3b2;
-		--accent: #d2ff50;
+		--bg: #ffffff;
+		--bg-subtle: #f9fafb;
+		--bg-muted: #f3f4f6;
+		--text: #000000;
+		--text-secondary: #6b7280;
+		--text-muted: #9ca3af;
+		--text-body: #374151;
+		--border: #e5e7eb;
+		--border-strong: #d1d5db;
+		--accent: #f97316;
+		--accent-bg: #fff7ed;
+		--accent-strong: #ea580c;
+		--shadow: rgba(0,0,0,0.03);
+		--shadow-lg: rgba(0,0,0,0.08);
 	}
+	@media (prefers-color-scheme: dark) {
+		:root {
+			--bg: #000000;
+			--bg-subtle: #111827;
+			--bg-muted: #1f2937;
+			--text: #ffffff;
+			--text-secondary: #6b7280;
+			--text-muted: #9ca3af;
+			--text-body: #d1d5db;
+			--border: #374151;
+			--border-strong: #4b5563;
+			--accent: #fb923c;
+			--accent-bg: #431407;
+			--accent-strong: #f97316;
+			--shadow: rgba(0,0,0,0.2);
+			--shadow-lg: rgba(0,0,0,0.3);
+		}
+	}
+	@font-face { font-family: 'Uncut Sans'; src: url('https://zerolovesea.top/fonts/uncut/woff2/UncutSans-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+	@font-face { font-family: 'Uncut Sans'; src: url('https://zerolovesea.top/fonts/uncut/woff2/UncutSans-Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+	@font-face { font-family: 'Uncut Sans'; src: url('https://zerolovesea.top/fonts/uncut/woff2/UncutSans-Semibold.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+	@font-face { font-family: 'Uncut Sans'; src: url('https://zerolovesea.top/fonts/uncut/woff2/UncutSans-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+
 	* { box-sizing: border-box; }
-	body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
-	.wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 80px; }
-	header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
-	h1 { font-size: 20px; margin: 0; font-weight: 700; }
-	.meta { color: var(--muted); font-size: 12px; font-weight: 400; margin-left: 8px; }
-	.note { margin: 8px 2px 0; }
-	button { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
-	button:hover { border-color: var(--accent); }
-	.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
-	.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
-	.card .num { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
-	.card .lbl { color: var(--muted); font-size: 12px; margin-top: 2px; }
-	.card .sub { color: var(--muted); font-size: 12px; margin-top: 2px; border-top: 1px solid var(--border); padding-top: 6px; margin-top: 8px; }
-	.card .sub b { color: var(--text); font-variant-numeric: tabular-nums; }
-	.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 20px 0 8px; }
-	.tabs button.active { border-color: var(--accent); color: var(--accent); }
-	.section { margin-top: 20px; }
-	.section h2 { font-size: 13px; color: var(--muted); font-weight: 600; margin: 0 0 8px; letter-spacing: 0.04em; }
-	.chart { background: var(--card); border: 1px solid var(--border); border-radius: 12px; width: 100%; }
-	#chart-timeline { height: 300px; }
-	#chart-calendar { height: 210px; }
-	.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 8px; }
-	.grid .chart { height: 320px; }
-	.error { color: #ff8a8a; }
-	.hidden { display: none; }
+	body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 'Uncut Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; font-weight: 500; text-transform: lowercase; }
+	.wrap { max-width: 1080px; margin: 0 auto; padding: 40px 24px 96px; }
+	header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 32px; }
+	h1 { font-size: 22px; margin: 0; font-weight: 500; letter-spacing: -0.025em; display: flex; align-items: baseline; gap: 10px; }
+	h2 { font-size: 12px; color: var(--text-secondary); font-weight: 600; margin: 0 0 12px; letter-spacing: 0.05em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+	h2 svg { color: var(--accent); width: 13px; height: 13px; }
+	.meta { color: var(--text-muted); font-size: 11px; font-weight: 400; }
+	.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 999px; background: var(--accent-bg); color: var(--accent-strong); border: 1px solid var(--border); cursor: pointer; transition: all 0.15s ease; }
+	.icon-btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+	.icon-btn:active { transform: scale(0.96); }
+	svg { flex-shrink: 0; }
+
+	/* tabs */
+	.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+	.tabs button { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 999px; padding: 8px 16px; font-weight: 500; font-family: inherit; font-size: 12px; cursor: pointer; transition: all 0.15s ease; text-transform: lowercase; }
+	.tabs button:hover { border-color: var(--accent); color: var(--accent); }
+	.tabs button.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+	/* metrics bar */
+	.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+	.metric { display: flex; align-items: center; gap: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 20px 22px; transition: all 0.15s ease; }
+	.metric:hover { border-color: var(--accent); box-shadow: 0 4px 12px var(--shadow-lg); }
+	.metric .ic { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; background: var(--accent-bg); color: var(--accent); flex-shrink: 0; }
+	.metric .num { font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -0.025em; line-height: 1; color: var(--text); }
+	.metric .lbl { color: var(--text-secondary); font-size: 11px; margin-top: 4px; text-transform: lowercase; }
+
+	/* tables */
+	.tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 32px; }
+	.table-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 20px 24px; transition: all 0.15s ease; }
+	.table-panel:hover { border-color: var(--border-strong); }
+	table { width: 100%; border-collapse: collapse; font-size: 13px; }
+	thead th { text-align: left; color: var(--text-secondary); font-weight: 600; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; padding: 10px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+	thead th.sortable { cursor: pointer; user-select: none; transition: color 0.15s ease; }
+	thead th.sortable:hover { color: var(--accent); }
+	thead th.sortable svg { vertical-align: -1px; margin-left: 2px; }
+	thead th.num-col { text-align: right; }
+	tbody td { padding: 12px 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; color: var(--text-body); transition: background 0.15s ease; }
+	tbody tr:hover { background: var(--accent-bg); }
+	tbody tr:last-child td { border-bottom: 0; }
+	td.rank { color: var(--text-muted); width: 40px; font-weight: 600; font-size: 12px; }
+	td.rank.top { color: var(--accent); }
+	td.name { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; }
+	td.num { text-align: right; font-weight: 500; }
+
+	/* charts */
+	.section { margin-top: 12px; }
+	.chart { background: var(--bg); border: 1px solid var(--border); border-radius: 16px; width: 100%; transition: all 0.15s ease; }
+	.chart:hover { border-color: var(--border-strong); }
+	#chart-timeline { height: 320px; }
+	.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px; margin-top: 20px; }
+	.grid .chart { height: 340px; }
+	.empty { color: var(--text-muted); padding: 16px 8px; font-size: 12px; text-align: center; }
+	.error { color: #dc2626; padding: 12px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; margin-bottom: 16px; }
+	@media (prefers-color-scheme: dark) { .error { background: #450a0a; border-color: #7f1d1d; } }
+	.hidden { display: none !important; }
+	.load-more { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-secondary); border-radius: 12px; padding: 10px; width: 100%; margin-top: 12px; font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; text-align: center; transition: all 0.15s ease; }
+	.load-more:hover { color: var(--accent); border-color: var(--accent); border-style: solid; }
+	.load-more:disabled { opacity: 0.4; cursor: default; }
+
+	/* refresh-icon spin */
+	@keyframes spin { to { transform: rotate(360deg); } }
+	.icon-btn.spinning svg { animation: spin 0.6s linear infinite; }
+
+	/* custom range picker */
+	.custom-range { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 24px; }
+	.custom-range input { font: inherit; font-size: 12px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); transition: all 0.15s ease; }
+	.custom-range input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+	.custom-range .sep { color: var(--text-muted); font-weight: 400; }
+	.custom-range button { background: var(--accent); color: var(--bg); border: 0; border-radius: 10px; padding: 8px 18px; font-weight: 500; font-size: 12px; font-family: inherit; cursor: pointer; transition: all 0.15s ease; }
+	.custom-range button:hover { background: var(--accent-strong); transform: translateY(-1px); }
+	.custom-range button:active { transform: translateY(0); }
+	.custom-range .err { color: #dc2626; font-size: 11px; }
+	@media (prefers-color-scheme: dark) { .custom-range .err { color: #f87171; } }
 </style>
 </head>
 <body>
 <div class="wrap">
 	<header>
-		<h1>访问数据看板<span class="meta" id="generated"></span></h1>
-		<button id="refresh">刷新数据（约 5 秒）</button>
+		<h1>ZeroDash<span class="meta" id="generated"></span></h1>
+		<button class="icon-btn" id="refresh" aria-label="手动刷新" title="手动刷新">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+		</button>
 	</header>
 	<div id="error"></div>
 
-	<div class="cards" id="cards"></div>
-
-	<div class="section">
-		<h2>访问时间分布</h2>
-		<div id="chart-timeline" class="chart"></div>
-		<p class="meta note">独立访客 = 按浏览器匿名访客 ID 去重，每个数据桶内精确统计。</p>
-	</div>
-
-	<div class="section">
-		<h2>近 90 天日历热力图（本地日期）</h2>
-		<div id="chart-calendar" class="chart"></div>
-	</div>
-
 	<div class="tabs" id="tabs"></div>
+
+	<div class="custom-range hidden" id="custom-range">
+		<input type="datetime-local" id="custom-start" aria-label="开始时间">
+		<span class="sep">—</span>
+		<input type="datetime-local" id="custom-end" aria-label="结束时间">
+		<button id="custom-apply" type="button">查询</button>
+		<span class="err hidden" id="custom-error"></span>
+	</div>
+
+	<!-- metrics bar: selected window -->
+	<div class="metrics" id="metrics"></div>
+
+	<!-- ranking tables -->
+	<div class="tables">
+		<div class="table-panel">
+			<h2>
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+				帖子热度
+			</h2>
+			<div id="posts-table"></div>
+		</div>
+		<div class="table-panel">
+			<h2>
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+				城市分布
+			</h2>
+			<div id="city-table"></div>
+		</div>
+	</div>
+
+	<!-- charts -->
+	<div class="section">
+		<h2>
+			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+			时间分布
+		</h2>
+		<div id="chart-timeline" class="chart"></div>
+	</div>
 
 	<div class="grid">
 		<div class="chart" id="chart-country"></div>
 		<div class="chart" id="chart-language"></div>
-		<div class="chart" id="chart-city"></div>
-		<div class="chart" id="chart-posts"></div>
 	</div>
 </div>
 
 <script src="/vendor/echarts.min.js"></script>
 <script>
-	const WINDOWS = ["近24小时", "今天", "近7天", "近15天", "近30天", "近半年"];
-	const CHARTS = ["country", "language", "city", "posts"];
-	const PANEL_TITLES = { country: "国家分布", language: "语言分布", city: "城市分布", posts: "帖子分布" };
-	const COLORS = ["#d2ff50", "#7fd6ff", "#ffb86b", "#ff7ab8", "#c4a7ff", "#86efac", "#fca5a5", "#fde68a", "#a5b4fc", "#f0abfc", "#5eead4", "#fdba74"];
-	const AXIS = {
-		axisLine: { lineStyle: { color: "#3a4356" } },
+	const WINDOWS = ["近24小时", "今天", "近7天", "近15天", "近30天", "近半年", "自定义"];
+	const COLORS = ["#f97316", "#fb923c", "#fdba74", "#ea580c", "#c2410c", "#9a3412", "#7c2d12", "#60a5fa", "#34d399", "#a78bfa", "#f472b6", "#fbbf24"];
+
+	// Dynamic theme detection for charts
+	const isDark = () => window.matchMedia('(prefers-color-scheme: dark)').matches;
+	const chartBg = () => isDark() ? '#000000' : '#ffffff';
+	const chartBorder = () => isDark() ? '#374151' : '#e5e7eb';
+	const chartSplit = () => isDark() ? '#1f2937' : '#f3f4f6';
+	const chartText = () => isDark() ? '#6b7280' : '#374151';
+	const chartTextSec = () => isDark() ? '#6b7280' : '#6b7280';
+
+	const AXIS = () => ({
+		axisLine: { lineStyle: { color: chartBorder() } },
 		axisTick: { show: false },
-		splitLine: { lineStyle: { color: "#1f2631" } },
-	};
-	const TOOLTIP = {
-		backgroundColor: "#171a21",
-		borderColor: "#262b36",
-		textStyle: { color: "#e6e8ec" },
-		extraCssText: "border-radius:8px;box-shadow:none;",
-	};
+		splitLine: { lineStyle: { color: chartSplit() } },
+		axisLabel: { color: chartTextSec() }
+	});
+	const TOOLTIP = () => ({
+		backgroundColor: chartBg(),
+		borderColor: chartBorder(),
+		textStyle: { color: chartText() },
+		extraCssText: "border-radius:12px;box-shadow:0 8px 24px " + (isDark() ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.1)') + ";",
+	});
 
 	let data = null;
+	let customData = null;
+	let customLoaded = false;
 	let active = 0;
+	const sortState = { posts: { key: "n", dir: -1 }, city: { key: "n", dir: -1 } };
+	// Pagination for the two ranking tables.
+	const PAGE = 30;
+	const rankState = { posts: { loaded: 0, more: false, loading: false }, city: { loaded: 0, more: false, loading: false } };
+
+	function currentData() { return active === 6 ? customData : data; }
+	function win() { return currentData().windows[WINDOWS[active]]; }
+
+	// Current window's [start, end] ISO strings, for the "显示更多" paged fetch.
+	function rangeIso() {
+		if (active === 6) return { start: customData.start, end: customData.end };
+		return { start: new Date(customRangeFromWindow()).toISOString(), end: new Date().toISOString() };
+	}
+	function customRangeFromWindow() {
+		const now = new Date();
+		const day = 24 * 3600 * 1000;
+		switch (active) {
+			case 0: return now.getTime() - day;             // 近24小时
+			case 2: return now.getTime() - 7 * day;         // 近7天
+			case 3: return now.getTime() - 15 * day;        // 近15天
+			case 4: return now.getTime() - 30 * day;        // 近30天
+			case 5: return now.getTime() - 180 * day;       // 近半年
+			default: {
+				const t = new Date(now); t.setHours(0, 0, 0, 0); return t.getTime(); // 今天
+			}
+		}
+	}
 	const charts = {};
+
+	const ICONS = {
+		users: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+		clock: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+		eye: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+		chevronDown: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+		chevronUp: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
+	};
 
 	function initCharts() {
 		charts.timeline = echarts.init(document.getElementById("chart-timeline"));
-		charts.calendar = echarts.init(document.getElementById("chart-calendar"));
-		CHARTS.forEach((k) => {
-			charts[k] = echarts.init(document.getElementById("chart-" + k));
-		});
+		charts.country = echarts.init(document.getElementById("chart-country"));
+		charts.language = echarts.init(document.getElementById("chart-language"));
 	}
 
 	function fmt(n) { return (n ?? 0).toLocaleString("zh-CN"); }
@@ -112,20 +260,14 @@
 			return;
 		}
 		data = d;
+		resetRanks();
 		render();
 	}
 
 	function render() {
-		document.getElementById("generated").textContent = "更新于 " + new Date(data.generatedAt).toLocaleString();
-
-		document.getElementById("cards").innerHTML = WINDOWS.map(function (w) {
-			const entry = data.windows[w] || {};
-			const v = entry.visits || 0;
-			const u = entry.visitors || 0;
-			return '<div class="card"><div class="num">' + fmt(v) +
-				'</div><div class="lbl">' + w + ' · 访问次数</div>' +
-				'<div class="sub">独立访客 <b>' + fmt(u) + "</b></div></div>";
-		}).join("");
+		const src = currentData();
+		if (!src) return;
+		document.getElementById("generated").textContent = "更新于 " + new Date(src.generatedAt).toLocaleTimeString();
 
 		document.getElementById("tabs").innerHTML = WINDOWS.map(function (w, i) {
 			return '<button class="' + (i === active ? "active" : "") + '" data-i="' + i + '">' + w + "</button>";
@@ -133,38 +275,155 @@
 		Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b) {
 			b.addEventListener("click", function () {
 				active = Number(b.getAttribute("data-i"));
+				document.getElementById("custom-range").classList.toggle("hidden", active !== 6);
+				document.getElementById("custom-error").classList.add("hidden");
+				resetRanks();
+				if (active === 6 && !customLoaded) {
+					setCustomDefaults();
+					queryCustom();
+					return;
+				}
 				render();
 			});
 		});
 
+		renderMetrics();
+		renderRankTable("posts", "posts-table");
+		renderRankTable("city", "city-table");
 		renderTimeline();
-		renderCalendar();
-		CHARTS.forEach(renderDistribution);
+		renderDonut("country");
+		renderDonut("language");
+	}
+
+	// Reset pagination when the window changes.
+	function resetRanks() {
+		rankState.posts.loaded = 0; rankState.posts.more = false;
+		rankState.city.loaded = 0; rankState.city.more = false;
+	}
+	function setLoaded(key, n) { rankState[key].loaded = n; }
+	function loadedFor(key) { return rankState[key].loaded; }
+
+	function renderMetrics() {
+		const w = win();
+		const items = [
+			{ icon: ICONS.users, label: "访问人数", value: w.visitors, tip: "独立访客（按匿名 ID 去重）" },
+			{ icon: ICONS.clock, label: "访问次数", value: w.visits, tip: "会话数：同一访客 30 分钟内连续浏览计 1 次" },
+			{ icon: ICONS.eye, label: "阅读次数", value: w.views, tip: "页面浏览量" },
+		];
+		document.getElementById("metrics").innerHTML = items.map(function (m) {
+			return '<div class="metric" title="' + m.tip + '"><div class="ic">' + m.icon + '</div><div><div class="num">' +
+				fmt(m.value) + '</div><div class="lbl">' + m.label + "</div></div></div>";
+		}).join("");
+	}
+
+	function renderRankTable(key, elId) {
+		const rows = win()[key] || [];
+		const el = document.getElementById(elId);
+		const st = sortState[key];
+		const currentLoaded = loadedFor(key);
+
+		function draw(sorted, showMore) {
+			if (!sorted || sorted.length === 0) {
+				el.innerHTML = '<p class="empty">暂无数据</p>';
+				return;
+			}
+			setLoaded(key, currentLoaded + sorted.length);
+			let html = '<table><thead><tr><th>#</th><th>名称</th>' +
+				'<th class="num-col sortable" data-k="u">访问人数' + chevron("u") + "</th>" +
+				'<th class="num-col sortable" data-k="n">访问次数' + chevron("n") + "</th>" +
+				"</tr></thead><tbody>";
+			sorted.forEach(function (r, i) {
+				html += "<tr><td class=\"" + (i < 3 ? "rank top" : "rank") + "\">" + (i + 1) + "</td>" +
+					'<td class="name" title="' + (r.k || "") + '">' + (r.k || "未知") + "</td>" +
+					'<td class="num">' + fmt(r.u) + "</td>" +
+					'<td class="num">' + fmt(r.n) + "</td></tr>";
+			});
+			html += "</tbody></table>";
+			if (showMore) {
+				html += '<button type="button" class="load-more" data-more-key="' + key + '">显示更多</button>';
+			}
+			el.innerHTML = html;
+			Array.prototype.forEach.call(el.querySelectorAll("th.sortable"), function (th) {
+				th.addEventListener("click", function () {
+					const k = th.getAttribute("data-k");
+					if (sortState[key].key === k) sortState[key].dir = -sortState[key].dir;
+					else sortState[key] = { key: k, dir: -1 };
+					renderRankTable(key, elId);
+				});
+			});
+			el.querySelector("button.load-more")?.addEventListener("click", function () {
+				loadMore(key, elId);
+			});
+		}
+
+		const chevron = function (k) {
+			if (st.key !== k) return "";
+			return st.dir === -1 ? ICONS.chevronDown : ICONS.chevronUp;
+		};
+
+		if (rows.length === 0) {
+			draw([], false);
+			return;
+		}
+		// Rows from the main payload are pre-sorted by read count (n DESC); a
+		// non-default sort is handled client-side on the already-loaded slice.
+		let visible = rows.slice(0, currentLoaded > 0 ? currentLoaded : rows.length);
+		if (st.key !== "n" || st.dir !== -1) {
+			visible = visible.slice().sort(function (a, b) {
+				return st.dir * ((a[st.key] || 0) - (b[st.key] || 0));
+			});
+		}
+		const haveMore = currentLoaded > 0 ? rankState[key].more : rows.length >= PAGE;
+		draw(visible, haveMore);
+	}
+
+	function loadMore(key, elId) {
+		const rs = rankState[key];
+		if (rs.loading) return;
+		rs.loading = true;
+		const range = rangeIso();
+		fetch("/api/ranking?k=" + key +
+			"&start=" + encodeURIComponent(range.start) +
+			"&end=" + encodeURIComponent(range.end) +
+			"&off=" + rs.loaded)
+			.then(function (r) { return r.json(); })
+			.then(function (d) {
+				if (d.error) { document.getElementById("error").innerHTML = '<p class="error">加载失败：' + d.error + "</p>"; return; }
+				const newRows = d.rows || [];
+				const base = win()[key] || [];
+				// Offset rows after what's loaded, minus any still inside the window.
+				const merged = base.slice(0, d.offset).concat(newRows);
+				win()[key] = merged;
+				rs.more = newRows.length >= PAGE;
+				rs.loading = false;
+				renderRankTable(key, elId);
+			})
+			.catch(function () { rs.loading = false; });
 	}
 
 	function renderTimeline() {
-		const w = data.windows[WINDOWS[active]];
+		const w = win();
 		charts.timeline.setOption({
 			backgroundColor: "transparent",
-			tooltip: Object.assign({ trigger: "axis" }, TOOLTIP),
-			legend: { top: 0, right: 8, textStyle: { color: "#9aa3b2" }, itemWidth: 14, itemHeight: 8, data: ["访问次数", "独立访客"] },
-			grid: { left: 8, right: 16, top: 32, bottom: 8, containLabel: true },
-			xAxis: Object.assign({ type: "category", boundaryGap: false, data: w.timeseries.labels }, AXIS, { axisLabel: { color: "#9aa3b2", hideOverlap: true } }),
-			yAxis: Object.assign({ type: "value", minInterval: 1 }, AXIS),
+			tooltip: Object.assign({ trigger: "axis" }, TOOLTIP()),
+			legend: { top: 0, right: 12, textStyle: { color: chartTextSec(), fontSize: 11 }, itemWidth: 14, itemHeight: 8, data: ["阅读次数", "独立访客"] },
+			grid: { left: 8, right: 16, top: 40, bottom: 8, containLabel: true },
+			xAxis: Object.assign({ type: "category", boundaryGap: false, data: w.timeseries.labels }, AXIS(), { axisLabel: { color: chartTextSec(), hideOverlap: true, fontSize: 11 } }),
+			yAxis: Object.assign({ type: "value", minInterval: 1 }, AXIS()),
 			series: [
 				{
-					name: "访问次数",
+					name: "阅读次数",
 					type: "line",
 					data: w.timeseries.values,
 					smooth: true,
 					symbol: "none",
-					lineStyle: { color: "#d2ff50", width: 2 },
+					lineStyle: { color: "#f97316", width: 2.5 },
 					areaStyle: {
 						color: {
 							type: "linear", x: 0, y: 0, x2: 0, y2: 1,
 							colorStops: [
-								{ offset: 0, color: "rgba(210,255,80,0.30)" },
-								{ offset: 1, color: "rgba(210,255,80,0.02)" },
+								{ offset: 0, color: isDark() ? "rgba(251,146,60,0.12)" : "rgba(249,115,22,0.16)" },
+								{ offset: 1, color: "rgba(249,115,22,0.01)" },
 							],
 						},
 					},
@@ -175,92 +434,100 @@
 					data: w.timeseries.uniques,
 					smooth: true,
 					symbol: "none",
-					lineStyle: { color: "#7fd6ff", width: 2 },
+					lineStyle: { color: isDark() ? "#60a5fa" : "#2563eb", width: 2 },
 				},
 			],
 		});
 	}
 
-	function renderCalendar() {
-		const entries = data.calendar || [];
-		const maxVal = Math.max.apply(null, entries.map(function (e) { return e[1]; }));
-		charts.calendar.setOption({
+	function renderDonut(key) {
+		const w = win();
+		const rows = w[key] || [];
+		const titles = { country: "国家分布", language: "语言分布" };
+		charts[key].setOption({
 			backgroundColor: "transparent",
-			tooltip: Object.assign({
-				formatter: function (p) {
-					return p.value[0] + "<br/>访问 " + fmt(p.value[1]);
-				},
-			}, TOOLTIP),
-			visualMap: {
-				min: 0,
-				max: maxVal > 0 ? maxVal : 1,
-				calculable: false,
-				orient: "horizontal",
-				left: "center",
-				bottom: 0,
-				inRange: { color: ["#1a1f2a", "#3f4d33", "#8fbf3a", "#d2ff50"] },
-				textStyle: { color: "#9aa3b2" },
-			},
-			calendar: {
-				range: [entries[0][0], entries[entries.length - 1][0]],
-				cellSize: ["auto", 14],
-				itemStyle: { color: "#171a21", borderColor: "#0f1115", borderWidth: 2 },
-				dayLabel: { color: "#9aa3b2", firstDay: 1 },
-				monthLabel: { color: "#9aa3b2", formatter: "{yyyy}-{MM}" },
-				splitLine: { lineStyle: { color: "#262b36" } },
-				yearLabel: { show: false },
-			},
+			title: { text: titles[key], left: 16, top: 14, textStyle: { color: chartTextSec(), fontSize: 11, fontWeight: 600, letterSpacing: 0.05, textTransform: 'uppercase' } },
+			tooltip: Object.assign({ trigger: "item" }, TOOLTIP()),
+			color: COLORS,
+			legend: { type: "scroll", orient: "vertical", right: 12, top: "middle", textStyle: { color: chartTextSec(), fontSize: 11 }, itemWidth: 8, itemHeight: 8, icon: "circle" },
 			series: [{
-				type: "heatmap",
-				coordinateSystem: "calendar",
-				data: entries,
+				type: "pie",
+				radius: ["44%", "70%"],
+				center: ["36%", "52%"],
+				avoidLabelOverlap: true,
+				itemStyle: { borderColor: chartBg(), borderWidth: 2 },
+				label: { color: chartText(), fontSize: 11, formatter: "{b}\n{d}%" },
+				labelLine: { lineStyle: { color: chartBorder() } },
+				data: rows.map(function (r) { return { name: r.k || "未知", value: r.n }; }),
 			}],
 		});
 	}
 
-	function renderDistribution(key) {
-		const w = data.windows[WINDOWS[active]];
-		const rows = w[key] || [];
-		if (key === "posts" || key === "city") {
-			charts[key].setOption({
-				backgroundColor: "transparent",
-				title: { text: PANEL_TITLES[key], left: 12, top: 8, textStyle: { color: "#9aa3b2", fontSize: 13, fontWeight: 600 } },
-				tooltip: Object.assign({ trigger: "axis", axisPointer: { type: "shadow" } }, TOOLTIP),
-				grid: { left: 8, right: 48, top: 40, bottom: 8, containLabel: true },
-				xAxis: Object.assign({ type: "value", minInterval: 1 }, AXIS),
-				yAxis: Object.assign({ type: "category", inverse: true, data: rows.map(function (r) { return r.k || "未知"; }) }, AXIS, { axisLabel: { color: "#9aa3b2", width: 90, overflow: "truncate" }, splitLine: { show: false } }),
-				series: [{
-					type: "bar",
-					data: rows.map(function (r) { return r.n; }),
-					barWidth: "55%",
-					itemStyle: { color: "#d2ff50", borderRadius: [0, 3, 3, 0] },
-					label: { show: true, position: "right", color: "#9aa3b2" },
-				}],
-			});
-		} else {
-			charts[key].setOption({
-				backgroundColor: "transparent",
-				title: { text: PANEL_TITLES[key], left: 12, top: 8, textStyle: { color: "#9aa3b2", fontSize: 13, fontWeight: 600 } },
-				tooltip: Object.assign({ trigger: "item" }, TOOLTIP),
-				color: COLORS,
-				legend: { type: "scroll", orient: "vertical", right: 8, top: "middle", textStyle: { color: "#9aa3b2" }, itemWidth: 10, itemHeight: 10, icon: "circle" },
-				series: [{
-					type: "pie",
-					radius: ["42%", "68%"],
-					center: ["36%", "52%"],
-					avoidLabelOverlap: true,
-					itemStyle: { borderColor: "#0f1115", borderWidth: 2 },
-					label: { color: "#9aa3b2", formatter: "{b}\n{d}%" },
-					labelLine: { lineStyle: { color: "#3a4356" } },
-					data: rows.map(function (r) { return { name: r.k || "未知", value: r.n }; }),
-				}],
-			});
-		}
+	function setCustomDefaults() {
+		const end = new Date();
+		const start = new Date(end.getTime() - 7 * 24 * 3600 * 1000);
+		document.getElementById("custom-start").value = toLocalInput(start);
+		document.getElementById("custom-end").value = toLocalInput(end);
 	}
 
-	document.getElementById("refresh").addEventListener("click", function () { load(true); });
+	function toLocalInput(d) {
+		const p = function (n) { return String(n).padStart(2, "0"); };
+		return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes());
+	}
+
+	function queryCustom() {
+		const startVal = document.getElementById("custom-start").value;
+		const endVal = document.getElementById("custom-end").value;
+		const errEl = document.getElementById("custom-error");
+		errEl.classList.add("hidden");
+		if (!startVal || !endVal) return;
+		const s = new Date(startVal);
+		const e = new Date(endVal);
+		if (isNaN(s.getTime()) || isNaN(e.getTime()) || s.getTime() >= e.getTime()) {
+			errEl.textContent = "开始时间需早于结束时间";
+			errEl.classList.remove("hidden");
+			return;
+		}
+		fetch("/api/data?start=" + encodeURIComponent(s.toISOString()) + "&end=" + encodeURIComponent(e.toISOString()))
+			.then(function (r) { return r.json(); })
+			.then(function (d) {
+				if (d.error) {
+					document.getElementById("error").innerHTML = '<p class="error">加载失败：' + d.error + "</p>";
+					return;
+				}
+				customData = d;
+				customLoaded = true;
+				resetRanks();
+				render();
+			})
+			.catch(function () {});
+	}
+
+	function withSpin(fn) {
+		const btn = document.getElementById("refresh");
+		btn.classList.add("spinning");
+		btn.disabled = true;
+		Promise.resolve()
+			.then(fn)
+			.finally(function () {
+				btn.classList.remove("spinning");
+				btn.disabled = false;
+			});
+	}
+
+	document.getElementById("custom-apply").addEventListener("click", queryCustom);
+	document.getElementById("refresh").addEventListener("click", function () {
+		if (active === 6) { withSpin(queryCustom); return; }
+		withSpin(function () { return load(true); });
+	});
 	window.addEventListener("resize", function () {
 		Object.keys(charts).forEach(function (k) { charts[k].resize(); });
+	});
+	// Re-render charts on theme change
+	window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+		renderTimeline();
+		renderDonut("country");
+		renderDonut("language");
 	});
 	initCharts();
 	load(false);
