@@ -1,6 +1,88 @@
 ---
-title: "大模型补课：传统LLM到Reasoning Model"
-description: ""
+title: "catching up on large language models: from conventional LLMs to reasoning models"
+description: "Notes on how reinforcement learning and verifiable rewards reshaped LLM reasoning."
 pubDate: "2026-08-23 15:50:32"
 ---
 
+import { Sidenote } from "@components/interactive";
+
+Development on [Brevia](https://brevia.work/) has recently reached a pause. Wanting something worthwhile to work on at home, I first looked into sparse autoencoders and realized how out of date parts of my understanding of large language models had become. So I am refreshing that knowledge system through a small series of posts on important developments in LLMs since 2024.
+
+My own mental model of LLMs was still rooted in 2024, when Mixtral 8×7B and Llama 3 had just arrived. I had done some SFT and RAG work; mixture-of-experts architectures were not yet widespread in LLMs. The dominant training pipeline was pre-training, then SFT, then RLHF, yielding a conversational model. The underlying idea was still the scaling law: vendors were in an arms race to increase parameter counts. Scaling laws no longer command quite the same attention, while reasoning and agents have become everyday concepts. Where I once had to wire together LangChain, rules, and hand-written tools for tool use and web search, an LLM's agentic capabilities can now handle that work with ease.
+
+This post looks at what I consider the most consequential breakthrough of the past two years: the reasoning model. I also recommend this excellent [overview on Zhihu](https://zhuanlan.zhihu.com/p/1992701789498279934) and this thoughtful [analysis](https://pfcc.blog/posts/swagger-deepseek-r1).
+
+## From Llama 3 to OpenAI o1
+
+![](20260824-1.jpeg)
+
+Back in 2024, the typical LLM training process began by pre-training a next-token-prediction model, then fine-tuning it on instruction-and-response pairs. RLHF had taken off, and reinforcement-learning post-training methods such as DPO and PPO were being used to steer models toward preferred outputs. The common view was that a model's capabilities were fixed when training ended.
+
+For straightforward problems, those language models could still produce answers directly. Fine-tuning and post-training data covered simple arithmetic and logical deductions reasonably well. But as problems grew more complex and required multiple dependent steps, chain-of-thought emerged: after receiving an input, a model emits several rounds of reasoning tokens before using the final round to produce its answer.
+
+> Why does chain-of-thought work? The early research path went roughly like this. Researchers first noticed the value of intermediate steps: OpenAI's 2021 paper introducing GSM8K created a math-reasoning dataset in a “question–steps–answer” format for fine-tuning GPT-3. The idea of intermediate steps had therefore appeared even earlier.
+>
+> ![](20260824-4.png)
+>
+> Researchers then found that irrelevant context or subjective details in a prompt can easily distract an LLM.
+>
+> ![](https://assets.ibm.com/is/image/ibm/s2a_irrelevant-details?fmt=png-alpha&dpr=on%2C1&fit=fit%2C1&wid=1584&hei=745)
+>
+> This led to System 2 Attention (S2A), a technique in which the model rewrites the input prompt into a cleaner form to improve accuracy.
+
+![](file:///Users/zyaztec/Projects/Brevia/frontend/assets/brevia-logo-reveal.gif)
+![](20260824-2.jpeg)
+
+Chain-of-thought delivered a clear improvement at the time. But because this apparent thinking was elicited by a prompt, a model might simply have learned from training data to generate text that resembles reasoning rather than genuinely following a process of noticing an error, backtracking, trying another method, and validating the answer.
+
+> A useful explanation, again from the [overview](https://zhuanlan.zhihu.com/p/1992701789498279934): LLM decoding continually selects the most probable sequence. For a given question, that sequence contains both a reasoning path and a final answer. The existence of the reasoning path means its final answer need not be the theoretically most likely one. Put differently, if the patterns and tokens in a reasoning path feel especially familiar and comfortable to the LLM, it may prefer that sequence even when the final answer is wrong.
+
+In September 2024, OpenAI released o1 and argued publicly that large-scale reinforcement learning could teach models to use chain-of-thought more effectively. Performance improved with both training-time and test-time compute. In practice, this meant longer reasoning-token sequences, reasoning <Sidenote id="1">trajectories: a language model's chain-of-thought generation can be viewed as traversing a path through representation space</Sidenote>, search strategies, and verification and reranking strategies.
+
+Previously, suppose the training set contained a question $a$ with correct answer $b$. Under SFT, the target output for $a$ might be: “Because $a=c$ and $c=b$, therefore $a=b$.” The model directly optimizes that reasoning process, learning the path supplied by the teacher. It is plainly not learning to reason for itself; it is learning to imitate the form of reasoning.
+
+Reinforcement learning is different. It gives the model no reasoning target—only a problem and an answer verifier. The model must explore reasoning paths on its own until it finds a correct answer. Different paths receive different rewards according to the verifier's result, and the model learns better paths by optimizing that reward. Math and code problems have objective, verifiable answers, so they do not require human feedback or a reward model. This makes their reinforcement-learning paths the easiest to optimize. The approach is called RLVR (Reinforcement Learning with Verifiable Rewards). Unlike RLHF, which relies on human feedback and a reward model, RLVR only needs to determine whether the verifier's result is correct.
+
+That is o1's most important breakthrough: a model can explore reasoning paths for itself instead of being given those paths by humans.
+
+## From DeepSeek-R1-Zero to DeepSeek-R1
+
+DeepSeek-R1 is widely considered one of the most important papers of the past two years because it disclosed the full reasoning-RL route that OpenAI had kept under wraps for so long.<Sidenote id="2">An [IBM article](https://www.ibm.com/cn-zh/think/topics/reasoning-model) puts it this way: OpenAI first introduced the idea of a “reasoning model” in September 2024 through o1-preview and o1-mini. Alibaba released Qwen with Questions (QwQ-32B-preview) in November, and Google released Gemini 2.0 Flash Experimental in December. A milestone in the development of reasoning LLMs was the January 2025 release of the open-weight DeepSeek-R1. Until then, the fine-tuning processes behind reasoning models had been closely held; DeepSeek's detailed technical report gave other model developers an implementation route to study.</Sidenote> R1-Zero even skipped SFT, applying large-scale reinforcement learning directly to a base model. It developed substantial reasoning ability, along with longer reasoning and reflection-like behavior, but had poor readability, mixed languages, and other presentation issues.
+
+The emergence of this standard paradigm led to a wave of reasoning models. Previously, to teach a model to navigate a maze with SFT, one had to give it the canonical path. With RL, it only needs a reward for reaching the exit and zero reward for hitting a wall. In that process, it may learn better strategies—possibly strategies people would not have imagined and that would never appear in SFT data.
+
+![](20260824-3.jpeg)
+
+For R1-Zero<Sidenote id="3">R1-Zero was built on the 671B-parameter DeepSeek-V3 base model, released in December 2024.</Sidenote>, researchers designed two kinds of reward. **Accuracy rewards** used the LeetCode compiler to verify code-problem answers and deterministic rules to evaluate math results. **Format rewards** used an LLM judge to check whether an answer followed the required structure—for example, placing its reasoning inside `<think>` tags.
+
+![](20260824-6.png)
+
+Although the training process did not use data containing self-correction formats, researchers found that the model began producing reasoning traces in its answers. It developed ways to check itself, often with thought paths such as “wait...”. This was considered an important breakthrough. As training progressed, its thinking time gradually increased and more complex reasoning behavior began to emerge.
+
+> Subsequent work has suggested that the base model may already possess some reasoning ability, and that RL amplifies this ability, making self-checking behavior more likely to appear in its reasoning paths.
+
+R1-Zero was a major breakthrough, but its reasoning was difficult for people to read: languages were mixed, formatting was irregular, and the expression was hard to follow. DeepSeek-R1 therefore added SFT back on top of R1-Zero.
+
+The full training pipeline has four stages: Stage 1, cold-start SFT; Stage 2, reasoning-oriented reinforcement learning; Stage 3, rejection sampling and supervised fine-tuning; and Stage 4, reinforcement learning for all scenarios.
+
+Cold-start SFT teaches the model to present reasoning paths in a human-readable form. Reasoning RL teaches it better reasoning strategies. The final SFT and RL stages further teach it to present those paths readably.
+
+In simple terms: pre-training gives a model capabilities; SFT specifies behavioral patterns, output formats, and style; RL lets it explore high-value strategies.
+
+### GRPO
+
+![](20260824-5.png)
+
+The central RL method used in DeepSeek-R1 is GRPO (Group Relative Policy Optimization), which later drew enormous attention. Its advantage is a substantial reduction in training cost. PPO normally requires a policy model, a reference model, and a reward model, which is already expensive. GRPO instead groups a set of answers to a given problem $a$ by their quality, then updates the policy so that high-quality paths become more likely.<Sidenote id="4">Borrowing a few definitions from an [overview](https://www.themoonlight.io/paper/1982eadd-ad54-4400-92b6-d29bf4a9d90e): **Proximal Policy Optimization (PPO)** is an on-policy RL algorithm designed to improve a policy in small, safe steps. It optimizes a surrogate objective that balances maximizing reward against limiting deviation from the previous policy. **Direct Preference Optimization (DPO)** directly optimizes a policy from human preferences without a reward model, framing RL as a classification problem that distinguishes preferred from non-preferred outputs. **Group Relative Policy Optimization (GRPO)** is a PPO variant that simplifies training by eliminating the critic model; it estimates the baseline for advantage calculation from group scores, reducing compute requirements.</Sidenote>
+
+> Reading the paper from beginning to end, I was struck by how little it relies on flashy terminology or formulas. It is full of strong engineering thinking: the problems are clearly defined, the reasoning flows naturally, and the implementation is solid. It is enjoyable to read because it explores and validates from observations, rather than drawing a target around an arrow already fired.
+
+## What a reasoning model really is
+
+At its core, a reasoning model is still a next-token-prediction model. Its post-training changes the distribution of reasoning paths across problems, making high-value paths easier for the model to produce.
+
+Computationally, what a model calls thinking is simply the generation of more intermediate tokens. As the context grows, reasoning tokens function as a scratchpad: they give the model more contextual information from which to produce a better result.
+
+My understanding is that the breakthrough of reasoning models is chiefly enabled by math and code problems having unambiguous answers, which makes large-scale, inexpensive reasoning-RL training with RLVR possible. Subjective reasoning problems that are more closely tied to human values still need further research.
+
+August 24, 2026, Suzhou
