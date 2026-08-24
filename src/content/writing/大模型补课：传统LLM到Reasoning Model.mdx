@@ -16,19 +16,18 @@ import { Sidenote } from "@components/interactive";
 
 ![](20260824-1.jpeg)
 
-时间回到2024年，当时大模型的训练流程基本上是先预训练一个next-token prediction的模型，然后用instruction+response文本对做微调。当时rlhf已经兴起，开始有dpo/ppo这样的强化学习后训练策略用于强化模型的偏好输出。当时普遍认为模型能力在训练结束时确定。
+时间回到2024年，当时大模型的训练流程基本上是先预训练一个next-token prediction的模型，然后用instruction+response文本对做微调。当时rlhf已经兴起，开始有dpo/ppo这样的强化学习后训练策略用于强化模型的偏好输出。当时主流的一些训练范式，认为模型的能力在训练结束时就确定了。
 
 这样的语言模型对于比较直接简单的问题，还可以直接输出结果，例如简单的数学计算和逻辑推导，基本上微调和后训练的数据都足以cover。但随着问题越来越复杂，一个问题的解决需要多轮步骤依赖，于是发展出了思维链，也就是模型得到输入后，多次输出reasoning token，最后根据最后一轮的reasoning token输出最终回答。
 
 > 为什么思维链有效？当时的研究路径是：人们先注意到中间步骤的作用：OpenAI 在2021年的一篇论文中发布 GSM8K 任务，构造了“问题-步骤-答案”的三元组形式的数学推理数据集，用于微调 GPT-3。可以看到在更早之前，中间步骤的概念已经存在。![](20260824-4.png)
 > 之后人们又发现输入提示词中如果存在无关上下文或主观细节，大语言模型容易受到干扰。![](https://assets.ibm.com/is/image/ibm/s2a_irrelevant-details?fmt=png-alpha&dpr=on%2C1&fit=fit%2C1&wid=1584&hei=745)
-> 于是提出一种技术（System 2 Attention(S2A)），模型通过重写输入提示词，得到干净的提示词，以此来提高准确率。
-![](file:///Users/zyaztec/Projects/Brevia/frontend/assets/brevia-logo-reveal.gif)
-![](20260824-2.jpeg)
+> 2022年出现了Chain-of-Thought Prompting，研究者发现通过在prompt中加入“让模型一步步思考”的指令，可以显著提升模型的推理能力。
+> 2023年，OpenAI又在一篇论文中提出了Self-Consistency方法，研发现通过多次采样模型的推理路径，并对最终答案进行投票，可以进一步提升模型的推理能力。
 
 思维链在当时有了明显效果提升，但由于所谓的思维是prompt出来的，很有可能模型只是从训练数据学到了输出类似推到的文本，而不是真的思维过程：发现错误，然后回退，换一个方法，最后验证答案。
 
-> 有一个很好的解释，同样来自这篇[综述](https://zhuanlan.zhihu.com/p/1992701789498279934)，LLM 的 decoding 过程，始终在解码概率最大的序列，是针对某个问题，找出最大可能的一个输出序列。这个序列，包含了 reasoning path 和 final answer。reasoning path 的存在，使得其对应的 final answer 不一定是理论上最可能的。或者这么理解，如果 reasoning path 中的那些规律，那些 tokens，非常对 LLM 的胃口，让 LLM 非常舒服、非常熟悉，那么即使 final answer 不对，LLM 也可能认为这就是最佳序列，导致 answer 错误。
+> 有一个很好的解释，语言模型的训练目标是token likelihood，而不是“推理过程逻辑正确性”。因此一个语言上高概率、看起来很像正确推导的trajectory，并不保证最终答案正确。。
 
 2024年9月，openai发布了o1，并公开提出认为可以通过大规模强化学习，让模型学习更好的使用思维链。模型的性能随着训练时间和推理时间的增长而提高。而这一步体现在更长的reasoning tokens，推理路径<Sidenote id="1">trajectory，语言模型生成思维链式的推理过程，可以被视为一种在表示空间中的路径遍历</Sidenote>，搜索策略，验证和重排策略。
 
@@ -36,7 +35,7 @@ import { Sidenote } from "@components/interactive";
 
 而强化学习不一样，它不给模型提供reasoning target，只提供问题和答案验证器。模型需要自己探索推理路径，找到正确答案。不同的路径根据验证器结果，得到不同的奖励。模型通过优化奖励来学习更好的推理路径。由于对于数学问题和代码问题，他们有明确的客观正确答案，不需要人类反馈和reward model，因此优化他们的强化学习路径是最简单的，他们就被称为RLVR（Reinforcement Learning with Verifiable Rewards），它和rlhf的区别就在于后者需要人类反馈和reward model，前者只需要verifier结果是否正确。
 
-这个就是openai o1带来的最重要的突破：模型可以自己探索推理路径，而不需要人类提供推理路径。
+o1 最重要的突破，是证明了大规模 RL 可以显著改善模型使用 Chain-of-Thought 的方式，并打开 test-time compute 这条新的 scaling 维度。
 
 ## deepseek r1-zero到deepseek r1
 
@@ -46,7 +45,7 @@ deepseek r1被大多数人认为是过去2年里最重要的论文之一，因�
 
 ![](20260824-3.jpeg)
 
-在r1-zero<Sidenote id="3">R1-Zero基于 671B 参数的 DeepSeek-V3 基础模型（2024 年 12 月发布）</Sidenote>研究者设计了两类奖励：准确性奖励（accuracy reward）：用 LeetCode 编译器验证代码题答案，用确定性规则评估数学题结果。格式奖励（format reward）：由 LLM 评审（LLM judge）检查回答是否遵循预期格式，例如将推理步骤放入 `<think> `标签。
+R1-Zero<Sidenote id="3">R1-Zero基于 671B 参数的 DeepSeek-V3 基础模型（2024 年 12 月发布）</Sidenote> 采用两类基于规则的奖励：准确性奖励用于判断最终答案是否正确，例如数学题通过确定性规则验证、代码题通过编译器与测试用例验证；格式奖励用于检查模型是否按照要求将推理过程放入 `<think>...</think>` 标签中。
 
 ![](20260824-6.png)
 
@@ -54,7 +53,7 @@ deepseek r1被大多数人认为是过去2年里最重要的论文之一，因�
 
 > 不过后续研究中，有人认为基座模型可能已经有推理能力，rl放大了这种能力，让模型更容易在推理路径中出现自我检查的行为。
 
-r1-zero是一个很大的突破，但它的reasoning对于人类的可读性很差，表现为语言混杂，格式不规范，表达难理解。因此deepseek r1，它在r1-zero的基础上又加回来了sft步骤。
+r1-zero是一个很大的突破，但它的reasoning对于人类的可读性很差，表现为语言混杂，格式不规范，表达难理解。因此后续的deepseek r1在r1-zero的基础上又加回来了sft步骤。
 
 整个模型的训练流程由四个阶段组成， Stage1: 冷启动微调（Cold Start SFT）-> Stage2: 面向推理的强化学习（Reasoning-oriented Reinforcement Learning）-> Stage3: 拒绝采样和微调（Rejection Sampling and Supervised Fine-Tuning） -> Stage4: 全场景强化学习（Reinforcement Learning for all Scenarios）。
 
@@ -62,11 +61,11 @@ r1-zero是一个很大的突破，但它的reasoning对于人类的可读性很�
 
 简单理解为：预训练让模型学会能力，sft为模型规定行为模式，输出格式和风格，rl让模型探索高价值策略。
 
-### gpro
+### grpo
 
 ![](20260824-5.png)
 
-deepseek r1使用的核心rl方法是gpro（Group Relative Policy Optimization），这在后来引起了大规模反响。它的优势在于大大降低了训练成本。原先的ppo要求训练policy model，reference model和reward model三者，本身成本就很高，而gpro将问题a的一组回答根据回答质量进行分组，然后更新policy，让优质路径的出现概率更高。<Sidenote id="4">从一篇[综述](https://www.themoonlight.io/paper/1982eadd-ad54-4400-92b6-d29bf4a9d90e)里抄一点定义：近端策略优化 (Proximal Policy Optimization, PPO)。 PPO是一种同策略 (on-policy) 强化学习算法，旨在通过采取小而安全的步骤来改进策略。 它优化了一个代理目标函数，该函数在最大化奖励与最小化偏离先前策略之间取得平衡。直接偏好优化 (Direct Preference Optimization, DPO)。 DPO是一种直接基于人类偏好优化策略的算法，无需奖励模型。 它将强化学习构建为一个分类问题，学习区分偏好输出和非偏好输出。组相对策略优化 (Group Relative Policy Optimization, GRPO)。 GRPO是 PPO 的一种变体，通过省去评论家 (critic) 模型简化了训练过程。 相反，它通过组得分来估计优势计算的基线，从而减少了计算资源。</Sidenote>
+deepseek r1使用的核心rl方法是grpo（Group Relative Policy Optimization），这在后来引起了大规模反响。它的优势在于大大降低了训练成本。原先的ppo要求训练policy model，reference model和reward model三者，本身成本就很高，而grpo将问题a的一组回答根据回答质量进行分组，然后更新policy，让优质路径的出现概率更高。<Sidenote id="4">从一篇[综述](https://www.themoonlight.io/paper/1982eadd-ad54-4400-92b6-d29bf4a9d90e)里抄一点定义：近端策略优化 (Proximal Policy Optimization, PPO)。 PPO是一种同策略 (on-policy) 强化学习算法，旨在通过采取小而安全的步骤来改进策略。 它优化了一个代理目标函数，该函数在最大化奖励与最小化偏离先前策略之间取得平衡。直接偏好优化 (Direct Preference Optimization, DPO)。 DPO是一种直接基于人类偏好优化策略的算法，无需奖励模型。 它将强化学习构建为一个分类问题，学习区分偏好输出和非偏好输出。组相对策略优化 (Group Relative Policy Optimization, GRPO)。 GRPO是 PPO 的一种变体，通过省去评论家 (critic) 模型简化了训练过程。 相反，它通过组得分来估计优势计算的基线，从而减少了计算资源。</Sidenote>
 
 > 通篇读下来，deepseek r1没有用各种花里胡哨的技术名词或者公式，整篇论文都充满着强工程思维，问题定义清晰，思路流畅，工程扎实，所以读起来很舒服，基本上就是在发现的基础上进行探索和验证，而不是先射箭后画靶的灌水文章。
 

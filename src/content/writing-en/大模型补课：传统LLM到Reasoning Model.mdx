@@ -16,7 +16,7 @@ This post looks at what I consider the most consequential breakthrough of the pa
 
 ![](20260824-1.jpeg)
 
-Back in 2024, the typical LLM training process began by pre-training a next-token-prediction model, then fine-tuning it on instruction-and-response pairs. RLHF had taken off, and reinforcement-learning post-training methods such as DPO and PPO were being used to steer models toward preferred outputs. The common view was that a model's capabilities were fixed when training ended.
+Back in 2024, the typical LLM training process began by pre-training a next-token-prediction model, then fine-tuning it on instruction-and-response pairs. RLHF had taken off, and reinforcement-learning post-training methods such as DPO and PPO were being used to steer models toward preferred outputs. Mainstream training paradigms held that a model's capabilities were fixed when training ended.
 
 For straightforward problems, those language models could still produce answers directly. Fine-tuning and post-training data covered simple arithmetic and logical deductions reasonably well. But as problems grew more complex and required multiple dependent steps, chain-of-thought emerged: after receiving an input, a model emits several rounds of reasoning tokens before using the final round to produce its answer.
 
@@ -28,14 +28,13 @@ For straightforward problems, those language models could still produce answers 
 >
 > ![](https://assets.ibm.com/is/image/ibm/s2a_irrelevant-details?fmt=png-alpha&dpr=on%2C1&fit=fit%2C1&wid=1584&hei=745)
 >
-> This led to System 2 Attention (S2A), a technique in which the model rewrites the input prompt into a cleaner form to improve accuracy.
-
-![](file:///Users/zyaztec/Projects/Brevia/frontend/assets/brevia-logo-reveal.gif)
-![](20260824-2.jpeg)
+> In 2022, Chain-of-Thought Prompting showed that adding an instruction such as “think step by step” to a prompt could substantially improve a model's reasoning ability.
+>
+> In 2023, OpenAI introduced self-consistency: sampling multiple reasoning paths and voting on the final answer can improve reasoning performance further.
 
 Chain-of-thought delivered a clear improvement at the time. But because this apparent thinking was elicited by a prompt, a model might simply have learned from training data to generate text that resembles reasoning rather than genuinely following a process of noticing an error, backtracking, trying another method, and validating the answer.
 
-> A useful explanation, again from the [overview](https://zhuanlan.zhihu.com/p/1992701789498279934): LLM decoding continually selects the most probable sequence. For a given question, that sequence contains both a reasoning path and a final answer. The existence of the reasoning path means its final answer need not be the theoretically most likely one. Put differently, if the patterns and tokens in a reasoning path feel especially familiar and comfortable to the LLM, it may prefer that sequence even when the final answer is wrong.
+> A useful way to understand the limitation is that a language model is trained to maximize token likelihood, not the logical correctness of its reasoning process. A trajectory that is linguistically likely and resembles a sound derivation therefore does not guarantee a correct final answer.
 
 In September 2024, OpenAI released o1 and argued publicly that large-scale reinforcement learning could teach models to use chain-of-thought more effectively. Performance improved with both training-time and test-time compute. In practice, this meant longer reasoning-token sequences, reasoning <Sidenote id="1">trajectories: a language model's chain-of-thought generation can be viewed as traversing a path through representation space</Sidenote>, search strategies, and verification and reranking strategies.
 
@@ -43,7 +42,7 @@ Previously, suppose the training set contained a question $a$ with correct answe
 
 Reinforcement learning is different. It gives the model no reasoning target—only a problem and an answer verifier. The model must explore reasoning paths on its own until it finds a correct answer. Different paths receive different rewards according to the verifier's result, and the model learns better paths by optimizing that reward. Math and code problems have objective, verifiable answers, so they do not require human feedback or a reward model. This makes their reinforcement-learning paths the easiest to optimize. The approach is called RLVR (Reinforcement Learning with Verifiable Rewards). Unlike RLHF, which relies on human feedback and a reward model, RLVR only needs to determine whether the verifier's result is correct.
 
-That is o1's most important breakthrough: a model can explore reasoning paths for itself instead of being given those paths by humans.
+o1's most important breakthrough was demonstrating that large-scale RL can substantially improve how models use chain-of-thought, opening test-time compute as a new scaling dimension.
 
 ## From DeepSeek-R1-Zero to DeepSeek-R1
 
@@ -53,7 +52,7 @@ The emergence of this standard paradigm led to a wave of reasoning models. Previ
 
 ![](20260824-3.jpeg)
 
-For R1-Zero<Sidenote id="3">R1-Zero was built on the 671B-parameter DeepSeek-V3 base model, released in December 2024.</Sidenote>, researchers designed two kinds of reward. **Accuracy rewards** used the LeetCode compiler to verify code-problem answers and deterministic rules to evaluate math results. **Format rewards** used an LLM judge to check whether an answer followed the required structure—for example, placing its reasoning inside `<think>` tags.
+R1-Zero<Sidenote id="3">R1-Zero was built on the 671B-parameter DeepSeek-V3 base model, released in December 2024.</Sidenote> used two rule-based rewards. **Accuracy rewards** determine whether a final answer is correct—for example, with deterministic rules for mathematics and compilers plus test cases for code. **Format rewards** check that the model places its reasoning inside `<think>...</think>` tags as required.
 
 ![](20260824-6.png)
 
@@ -61,7 +60,7 @@ Although the training process did not use data containing self-correction format
 
 > Subsequent work has suggested that the base model may already possess some reasoning ability, and that RL amplifies this ability, making self-checking behavior more likely to appear in its reasoning paths.
 
-R1-Zero was a major breakthrough, but its reasoning was difficult for people to read: languages were mixed, formatting was irregular, and the expression was hard to follow. DeepSeek-R1 therefore added SFT back on top of R1-Zero.
+R1-Zero was a major breakthrough, but its reasoning was difficult for people to read: languages were mixed, formatting was irregular, and the expression was hard to follow. The subsequent DeepSeek-R1 therefore added SFT back on top of R1-Zero.
 
 The full training pipeline has four stages: Stage 1, cold-start SFT; Stage 2, reasoning-oriented reinforcement learning; Stage 3, rejection sampling and supervised fine-tuning; and Stage 4, reinforcement learning for all scenarios.
 
