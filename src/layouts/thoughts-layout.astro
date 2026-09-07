@@ -45,17 +45,17 @@ const {
 	<RootLayout>
 		<div
 			id='navbar+title'
-			class='flex flex-col w-full gap-6 max-w-2xl'>
+			class='flex flex-col w-full gap-6'>
 			<Header />
 
 			<article
 				id='blog-content'
 				class='w-full flex flex-col gap-6 items-center justify-center'>
 				<h1
-					class='w-full max-w-2xl text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight'>
+					class='w-full text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight'>
 					{title}
 				</h1>
-				<div class='flex flex-row gap-2 w-full max-w-2xl'>
+				<div class='flex flex-row gap-2 w-full'>
 					<p class='text-start text-gray-500 font-medium'>
 						<FormattedDate date={pubDate.toString()} />
 					</p>
@@ -71,7 +71,7 @@ const {
 				{
 				showTldr && (
 					<p
-						class='w-full max-w-2xl text-start font-medium text-gray-700 dark:text-gray-300 text-lg leading-relaxed'>
+						class='w-full text-start font-medium text-gray-700 dark:text-gray-300 text-lg leading-relaxed'>
 						<span class='font-semibold'>tl;dr: </span>
 						{description}
 					</p>
@@ -79,7 +79,7 @@ const {
 				}
 				<div
 					class={clsx(
-						'relative max-w-2xl',
+						'relative',
 					'w-full max-w-none prose prose-lg leading-relaxed my-3 prose-p:font-medium dark:prose-invert prose-a:underline items-center justify-center',
 						'dark:prose-a:bg-red-950 dark:prose-a:decoration-red-400 dark:prose-a:underline prose-a:bg-red-50 prose-a:decoration-red-500',
 						'prose-h1:font-medium prose-h2:font-medium prose-h3:font-medium prose-h4:font-medium prose-h5:font-medium prose-h6:font-medium',
