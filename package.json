@@ -11,7 +11,7 @@
 		"new": "bun scripts/new-post.ts",
 		"analytics": "bun scripts/analytics-server.ts",
 		"s": "bun run astro dev",
-		"d": "bun run build && git add -A && git commit -m \"deploy: update site\" && git push origin main && bunx wrangler deploy --name sanju",
+		"d": "bun run build && git add -A && (git diff --cached --quiet || git commit -m \"deploy: update site\") && git push origin main && bunx wrangler deploy --name sanju",
 		"test:reading-time": "bun scripts/test-reading-time.ts",
 		"check": "biome check ./src",
 		"lint": "biome lint ./src",
