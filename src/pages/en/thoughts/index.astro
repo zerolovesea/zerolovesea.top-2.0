@@ -14,7 +14,7 @@ const thoughts = (await getCollection("thoughtEn")).sort(
 <html lang="en">
 	<head><BaseHead title="thoughts" description="English translations of Yang Zhou's short-form notes." /></head>
 	<RootLayout>
-		<div class="flex flex-col w-full gap-6 max-w-xl">
+		<div class="flex flex-col w-full gap-6 max-w-2xl">
 			<Header />
 			<h1 class="mb-6 w-full text-7xl font-medium tracking-tight">thoughts</h1>
 			{thoughts.map((thought, index) => <ThoughtsItem category={thought.data.category} content={thought.data.description} pubDate={thought.data.pubDate} slug={thought.id} index={index} locale="en" />)}

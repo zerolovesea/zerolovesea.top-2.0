@@ -1,0 +1,100 @@
+---
+interface Props {
+	headings: { depth: number; slug: string; text: string }[];
+}
+
+const { headings } = Astro.props;
+const items = headings.filter(({ depth }) => depth === 2 || depth === 3);
+---
+
+{
+	items.length > 1 && (
+		<nav aria-label='table of contents' class='article-toc not-prose'>
+			{items.map(({ depth, slug, text }) => (
+				<a href={`#${slug}`} aria-label={text} class:list={['article-toc-item', depth === 3 && 'article-toc-item-nested']}>
+					<span class='article-toc-bar' aria-hidden='true'></span>
+					<span class='article-toc-label'>{text}</span>
+				</a>
+			))}
+		</nav>
+	)
+}
+
+<style>
+	.article-toc {
+		display: none;
+	}
+
+	@media (min-width: 1280px) {
+		.article-toc {
+			position: fixed;
+			z-index: 10;
+			top: 18.75rem;
+			left: max(1rem, calc(50% - 34rem));
+			display: flex;
+			flex-direction: column;
+			width: 2rem;
+			gap: 1.25rem;
+			opacity: 0.45;
+			transition: width 0.3s, opacity 0.3s;
+		}
+
+		.article-toc:hover,
+		.article-toc:focus-within {
+			width: 11rem;
+			opacity: 1;
+		}
+
+		.article-toc-item {
+			display: grid;
+			width: 100%;
+			color: rgb(163 163 163);
+		}
+
+		.article-toc-bar {
+			grid-area: 1 / 1;
+			align-self: center;
+			width: 2rem;
+			height: 2px;
+			background: currentColor;
+			transition: opacity 0.3s;
+		}
+
+		.article-toc-item-nested .article-toc-bar {
+			width: 1.125rem;
+		}
+
+		.article-toc-label {
+			grid-area: 1 / 1;
+			max-height: 0;
+			min-height: 0;
+			overflow: hidden;
+			line-height: 1.4;
+			opacity: 0;
+			font-size: 0.875rem;
+			transition: max-height 0.3s, opacity 0.3s;
+		}
+
+		.article-toc-item:hover,
+		.article-toc-item:focus-visible {
+			color: rgb(64 64 64);
+			outline: none;
+		}
+
+		.article-toc:hover .article-toc-bar,
+		.article-toc:focus-within .article-toc-bar {
+			opacity: 0;
+		}
+
+		.article-toc:hover .article-toc-label,
+		.article-toc:focus-within .article-toc-label {
+			max-height: 5rem;
+			opacity: 1;
+		}
+
+		:global(.dark) .article-toc-item:hover,
+		:global(.dark) .article-toc-item:focus-visible {
+			color: rgb(212 212 212);
+		}
+	}
+</style>

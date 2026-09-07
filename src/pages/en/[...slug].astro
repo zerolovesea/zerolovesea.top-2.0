@@ -1,10 +1,10 @@
 ---
-import type { GetStaticPaths } from "astro";
 import { getCollection, render } from "astro:content";
 import { ScrollProgress } from "@components/misc";
 import ThoughtsLayout from "@layouts/thoughts-layout.astro";
 import WritingLayout from "@layouts/writing-layout.astro";
 import { getReadingTime } from "@utils/index";
+import type { GetStaticPaths } from "astro";
 
 export const getStaticPaths = (async () => {
 	const [writings, thoughts] = await Promise.all([
@@ -28,12 +28,12 @@ if (!post) {
 	throw new Error(`Missing English content for ${slug}`);
 }
 
-const { Content } = await render(post);
+const { Content, headings } = await render(post);
 const readingTime = getReadingTime(post.body ?? "");
 ---
 
 {writing ? (
-	<WritingLayout {...writing.data} readingTime={readingTime}><Content /><ScrollProgress /></WritingLayout>
+	<WritingLayout {...writing.data} readingTime={readingTime} headings={headings}><Content /><ScrollProgress /></WritingLayout>
 ) : thought ? (
-	<ThoughtsLayout {...thought.data} readingTime={readingTime}><Content /><ScrollProgress /></ThoughtsLayout>
+	<ThoughtsLayout {...thought.data} readingTime={readingTime} headings={headings}><Content /><ScrollProgress /></ThoughtsLayout>
 ) : null}

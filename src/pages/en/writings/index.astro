@@ -14,7 +14,7 @@ const writings = (await getCollection("writingEn")).sort(
 <html lang="en">
 	<head><BaseHead title="writings" description="English translations of Yang Zhou's writings." /></head>
 	<RootLayout>
-		<div class="flex flex-col w-full gap-6 max-w-xl">
+		<div class="flex flex-col w-full gap-6 max-w-2xl">
 			<Header />
 			<h1 class="w-full text-7xl font-medium tracking-tight">writings</h1>
 			{writings.map((writing) => <WritingItem title={writing.data.title} date={writing.data.pubDate} slug={writing.id} locale="en" />)}

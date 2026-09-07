@@ -12,7 +12,7 @@ const languageHref = isEnglish
 	: `/en${Astro.url.pathname === "/" ? "" : Astro.url.pathname}`;
 ---
 
-<div class='flex flex-row justify-between items-center w-full max-w-xl'>
+<div class='flex flex-row justify-between items-center w-full'>
 	<div class='flex flex-row gap-3 font-medium text-black items-start'>
 		{
 			menuItems.map((item) => (

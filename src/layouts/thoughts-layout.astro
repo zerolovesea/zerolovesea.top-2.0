@@ -1,5 +1,10 @@
 ---
-import { Header, ReadingAnalytics, ViewCount } from "@components/misc";
+import {
+	ArticleToc,
+	Header,
+	ReadingAnalytics,
+	ViewCount,
+} from "@components/misc";
 import FormattedDate from "@components/misc/formatted-date.astro";
 import { BaseHead } from "@components/seo";
 import RootLayout from "@layouts/root-layout.astro";
@@ -12,10 +17,18 @@ interface Props {
 	pubDate: Date;
 	updatedDate?: Date;
 	readingTime?: number;
+	headings?: { depth: number; slug: string; text: string }[];
 }
 
-const { title, description, showTldr, pubDate, updatedDate, readingTime } =
-	Astro.props;
+const {
+	title,
+	description,
+	showTldr,
+	pubDate,
+	updatedDate,
+	readingTime,
+	headings = [],
+} = Astro.props;
 ---
 
 <html lang='en'>
@@ -32,17 +45,17 @@ const { title, description, showTldr, pubDate, updatedDate, readingTime } =
 	<RootLayout>
 		<div
 			id='navbar+title'
-			class='flex flex-col w-full gap-6 max-w-xl'>
+			class='flex flex-col w-full gap-6 max-w-2xl'>
 			<Header />
 
 			<article
 				id='blog-content'
 				class='w-full flex flex-col gap-6 items-center justify-center'>
 				<h1
-					class='w-full max-w-xl text-4xl md:text-5xl lg:text-7xl font-medium tracking-tight'>
+					class='w-full max-w-2xl text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight'>
 					{title}
 				</h1>
-				<div class='flex flex-row gap-2 w-full max-w-xl'>
+				<div class='flex flex-row gap-2 w-full max-w-2xl'>
 					<p class='text-start text-gray-500 font-medium'>
 						<FormattedDate date={pubDate.toString()} />
 					</p>
@@ -53,11 +66,12 @@ const { title, description, showTldr, pubDate, updatedDate, readingTime } =
 					<span class='text-gray-500 font-medium'>·</span>
 					<ViewCount />
 				</div>
+				<ArticleToc headings={headings} />
 
 				{
 				showTldr && (
 					<p
-						class='w-full max-w-xl text-start font-medium text-gray-700 dark:text-gray-300 text-lg leading-relaxed'>
+						class='w-full max-w-2xl text-start font-medium text-gray-700 dark:text-gray-300 text-lg leading-relaxed'>
 						<span class='font-semibold'>tl;dr: </span>
 						{description}
 					</p>
@@ -65,7 +79,7 @@ const { title, description, showTldr, pubDate, updatedDate, readingTime } =
 				}
 				<div
 					class={clsx(
-						'relative max-w-xl',
+						'relative max-w-2xl',
 					'w-full max-w-none prose prose-lg leading-relaxed my-3 prose-p:font-medium dark:prose-invert prose-a:underline items-center justify-center',
 						'dark:prose-a:bg-red-950 dark:prose-a:decoration-red-400 dark:prose-a:underline prose-a:bg-red-50 prose-a:decoration-red-500',
 						'prose-h1:font-medium prose-h2:font-medium prose-h3:font-medium prose-h4:font-medium prose-h5:font-medium prose-h6:font-medium',
