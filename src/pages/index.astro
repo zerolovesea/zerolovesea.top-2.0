@@ -1,14 +1,19 @@
 ---
 import { Header } from "@components/misc";
 import { BaseHead } from "@components/seo";
-import { SITE_DESCRIPTION, products, socialLinks } from "@data/index";
+import {
+	featuredProjects,
+	mergedContributions,
+	products,
+	socialLinks,
+} from "@data/index";
 import RootLayout from "@layouts/root-layout.astro";
 ---
 
 <!doctype html>
 <html lang="zh-CN">
 	<head>
-		<BaseHead title="ZeroLoveSeA" description={SITE_DESCRIPTION} />
+		<BaseHead title="ZeroLoveSeA" description="Yang Zhou 的 Python、数据分析与推荐系统项目：CTR/CVR、多任务学习、特征工程、模型评估与工程实践。" />
 	</head>
 	<RootLayout>
 		<div class="flex flex-col w-full gap-6 max-w-2xl">
@@ -18,8 +23,29 @@ import RootLayout from "@layouts/root-layout.astro";
 				<span class="block text-gray-500 dark:text-gray-400">engineer, trader</span>
 			</h1>
 			<div class="flex flex-col gap-5 text-lg font-medium leading-relaxed text-gray-700 dark:text-gray-400">
-				<p>生于江南水乡，目前从事精准营销，用户增长等相关工作。</p>
-				<p>我研究机器学习、推荐系统与量化低频策略，也关注把想法落地的工程细节。我在这里记录技术探索、交易记录和日常生活。</p>
+				<p>生于江南水乡，现居苏州，从事精准营销与用户增长相关工作，也开放马德里的工作机会。</p>
+				<p>我用 Python 做数据分析、特征工程和推荐系统建模，关注 CTR/CVR 预估、多任务学习、模型评估，以及从训练、推理到应用集成的工程落地。</p>
+				<p>我也研究量化低频策略，在这里记录技术探索、交易记录和日常生活。</p>
+				<section aria-labelledby="projects-heading" class="flex flex-col gap-4">
+					<h2 id="projects-heading" class="text-xl text-gray-900 dark:text-gray-100">技能与项目</h2>
+					<ul class="flex flex-col gap-4">
+						{featuredProjects.map((project) => (
+							<li>
+								<a href={project.url} target="_blank" rel="noopener noreferrer" class="text-gray-900 underline underline-offset-4 dark:text-gray-100">{project.name}</a>
+								<p class="mt-1 text-base">{project.description.zh}</p>
+							</li>
+						))}
+					</ul>
+					<div>
+						<h3 class="text-gray-900 dark:text-gray-100">torch-rechub 开源贡献</h3>
+						<p class="mt-1 text-base">我提交并已合并的 PR，均包含相应测试：</p>
+						<ul class="mt-2 flex flex-col gap-1 text-base">
+							{mergedContributions.map((contribution) => (
+								<li><a href={contribution.url} target="_blank" rel="noopener noreferrer" class="underline underline-offset-4">#{contribution.number} · {contribution.zh}</a></li>
+							))}
+						</ul>
+					</div>
+				</section>
 				<div>
 					<p>我最近在做：</p>
 					<div class="mt-4 flex flex-wrap gap-2">
