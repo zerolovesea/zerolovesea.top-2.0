@@ -49,11 +49,6 @@ export const products = [
 		url: "https://github.com/zerolovesea/NextRec",
 	},
 	{
-		name: "Featune",
-		icon: "Ft",
-		url: "https://github.com/zerolovesea/Featune",
-	},
-	{
 		name: "Kaggle",
 		icon: "Kaggle",
 		image: "/products/kaggle.svg",
@@ -64,54 +59,6 @@ export const products = [
 		name: "AI DASH",
 		icon: "AiDash",
 		image: "/products/ai-dash.png",
-	},
-];
-
-export const featuredProjects = [
-	{
-		name: "NextRec",
-		url: "https://github.com/zerolovesea/NextRec",
-		description: {
-			zh: "基于 Python / PyTorch 的推荐系统框架，覆盖 CTR/CVR 排序与多任务学习，将数值、类别和序列特征处理、模型训练、AUC / GAUC / LogLoss 评估及 ONNX 导出串成完整流程。",
-			en: "A Python / PyTorch recommender framework for CTR/CVR ranking and multi-task learning, connecting numerical, categorical, and sequence features with training, AUC / GAUC / LogLoss evaluation, and ONNX export.",
-		},
-	},
-	{
-		name: "Featune",
-		url: "https://github.com/zerolovesea/Featune",
-		description: {
-			zh: "面向表格数据的可审计特征工程搜索：用受控特征表达式、训练折内拟合和交叉验证评估候选，记录实验与资源消耗，并导出 sklearn pipeline。",
-			en: "Auditable feature engineering for tabular data: controlled feature expressions, transforms fitted within training folds, cross-validation, experiment and resource tracking, and sklearn pipeline export.",
-		},
-	},
-	{
-		name: "Brevia · 言录",
-		url: "https://github.com/zerolovesea/Brevia",
-		description: {
-			zh: "AI 辅助开发的本地优先会议助手，围绕录音、转写与纪要设计产品流程，集成语音识别和大语言模型，将模型能力转化为可用的应用。",
-			en: "A local-first meeting assistant developed with AI assistance, combining product workflows for recording, transcription, and meeting notes with speech recognition and LLM integration.",
-		},
-	},
-];
-
-export const mergedContributions = [
-	{
-		number: 120,
-		url: "https://github.com/datawhalechina/torch-rechub/pull/120",
-		zh: "训练器 L1/L2 正则化",
-		en: "L1/L2 regularization for trainers",
-	},
-	{
-		number: 121,
-		url: "https://github.com/datawhalechina/torch-rechub/pull/121",
-		zh: "AutoInt 排序模型与交互层",
-		en: "AutoInt ranking model and interaction layer",
-	},
-	{
-		number: 128,
-		url: "https://github.com/datawhalechina/torch-rechub/pull/128",
-		zh: "batch 内负采样与训练器适配",
-		en: "in-batch negative sampling and trainer integration",
 	},
 ];
 

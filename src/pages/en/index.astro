@@ -1,12 +1,7 @@
 ---
 import { Header } from "@components/misc";
 import { BaseHead } from "@components/seo";
-import {
-	featuredProjects,
-	mergedContributions,
-	products,
-	socialLinks,
-} from "@data/index";
+import { products, socialLinks } from "@data/index";
 import RootLayout from "@layouts/root-layout.astro";
 ---
 
@@ -15,7 +10,7 @@ import RootLayout from "@layouts/root-layout.astro";
 	<head>
 		<BaseHead
 			title="ZeroLoveSeA"
-			description="Yang Zhou's Python, data analysis, and recommender projects: CTR/CVR, multi-task learning, feature engineering, model evaluation, and engineering."
+			description="Yang Zhou's notes on machine learning, engineering, and life."
 		/>
 	</head>
 	<RootLayout>
@@ -26,29 +21,8 @@ import RootLayout from "@layouts/root-layout.astro";
 				<span class="block text-gray-500 dark:text-gray-400">engineer, trader</span>
 			</h1>
 			<div class="flex flex-col gap-5 text-lg font-medium leading-relaxed text-gray-700 dark:text-gray-400">
-				<p>Based in Suzhou, China · Open to opportunities in Madrid.</p>
-				<p>I work in precision marketing and user growth, using Python for data analysis, feature engineering, and recommender systems. My focus is CTR/CVR prediction, multi-task learning, model evaluation, and the engineering that connects training and inference to usable applications.</p>
-				<p>I also study low-frequency quantitative strategies. Here, I document technical explorations, trading notes, and everyday life.</p>
-				<section aria-labelledby="projects-heading" class="flex flex-col gap-4">
-					<h2 id="projects-heading" class="text-xl text-gray-900 dark:text-gray-100">skills &amp; projects</h2>
-					<ul class="flex flex-col gap-4">
-						{featuredProjects.map((project) => (
-							<li>
-								<a href={project.url} target="_blank" rel="noopener noreferrer" class="text-gray-900 underline underline-offset-4 dark:text-gray-100">{project.name}</a>
-								<p class="mt-1 text-base">{project.description.en}</p>
-							</li>
-						))}
-					</ul>
-					<div>
-						<h3 class="text-gray-900 dark:text-gray-100">torch-rechub contributions</h3>
-						<p class="mt-1 text-base">My merged PRs, each with accompanying tests:</p>
-						<ul class="mt-2 flex flex-col gap-1 text-base">
-							{mergedContributions.map((contribution) => (
-								<li><a href={contribution.url} target="_blank" rel="noopener noreferrer" class="underline underline-offset-4">#{contribution.number} · {contribution.en}</a></li>
-							))}
-						</ul>
-					</div>
-				</section>
+				<p>Based in SuZhou, I now work in precision marketing and user growth.</p>
+				<p>I study machine learning, recommender systems, and low-frequency quantitative strategies, also care about the engineering details that turn ideas into reality. Here, I document technical explorations, trading notes, and everyday life.</p>
 				<div>
 					<p>what i've been working on lately:</p>
 					<div class="mt-4 flex flex-wrap gap-2">
