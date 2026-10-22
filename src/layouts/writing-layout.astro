@@ -90,6 +90,9 @@ const {
 			</article>
 			<dialog id="image-lightbox" aria-label="image preview" tabindex="-1">
 				<div class="image-lightbox-controls">
+					<span data-position aria-live="polite"></span>
+					<button type="button" data-previous aria-label="previous image" title="previous"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" /></svg></button>
+					<button type="button" data-next aria-label="next image" title="next"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" /></svg></button>
 					<button type="button" data-close aria-label="close image preview" title="close">
 						<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
 							<path d="m6 6 12 12M18 6 6 18" />
@@ -186,6 +189,19 @@ const {
 			display: flex;
 			justify-content: flex-end;
 			margin-bottom: 0.5rem;
+			align-items: center;
+			gap: 0.5rem;
+		}
+
+		#image-lightbox [data-position] {
+			margin-right: auto;
+			font-size: 0.75rem;
+			color: var(--color-text-secondary);
+		}
+
+		#image-lightbox button:disabled {
+			opacity: 0.3;
+			cursor: default;
 		}
 
 		#image-lightbox button {
@@ -280,60 +296,60 @@ const {
 		const lightbox = document.querySelector<HTMLDialogElement>('#image-lightbox');
 		const preview = document.querySelector<HTMLImageElement>('#image-lightbox-preview');
 		const caption = document.querySelector<HTMLElement>('#image-lightbox-caption');
-		const closeButton = document.querySelector<HTMLButtonElement>('#image-lightbox [data-close]');
+		const previous = lightbox?.querySelector<HTMLButtonElement>('[data-previous]');
+		const next = lightbox?.querySelector<HTMLButtonElement>('[data-next]');
+		const position = lightbox?.querySelector<HTMLElement>('[data-position]');
+		const images = [...document.querySelectorAll<HTMLImageElement>('#blog-content .prose img')];
+		let imageIndex = 0;
 
-		if (lightbox && preview && caption) {
-			lightbox.addEventListener('close', () => {
-				document.documentElement.classList.remove('image-lightbox-open');
-			});
-
+		if (lightbox && preview && caption && previous && next && position) {
+			const showImage = (index: number) => {
+				if (index < 0 || index >= images.length) return;
+				imageIndex = index;
+				const image = images[index];
+				preview.src = image.currentSrc || image.src;
+				preview.alt = image.alt;
+				caption.textContent = image.alt;
+				caption.hidden = !image.alt;
+				position.textContent = `${index + 1} / ${images.length}`;
+				previous.disabled = index === 0;
+				next.disabled = index === images.length - 1;
+				previous.hidden = next.hidden = images.length < 2;
+			};
 			const closeLightbox = () => {
 				if (lightbox.classList.contains('is-closing')) return;
-				if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-					lightbox.close();
-					return;
-				}
-
+				if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { lightbox.close(); return; }
 				lightbox.classList.add('is-closing');
-				lightbox.addEventListener(
-					'animationend',
-					() => {
-						lightbox.close();
-						lightbox.classList.remove('is-closing');
-					},
-					{ once: true },
-				);
+				lightbox.addEventListener('animationend', () => lightbox.close(), { once: true });
 			};
-
-			document
-				.querySelectorAll<HTMLAnchorElement | HTMLImageElement>(
-					'#blog-content .image-gallery a, #blog-content .prose > p > img',
-				)
-				.forEach((element) => {
-					element.addEventListener('click', (event) => {
-						event.preventDefault();
-						const image = element instanceof HTMLImageElement ? element : element.querySelector('img');
-						if (!image) return;
-
-						preview.src = element instanceof HTMLAnchorElement ? element.href : image.currentSrc || image.src;
-						const alt = image.alt;
-						preview.alt = alt;
-						caption.textContent = alt;
-						caption.hidden = !alt;
-						lightbox.classList.remove('is-closing');
-						document.documentElement.classList.add('image-lightbox-open');
-						lightbox.showModal();
-						lightbox.focus();
-					});
-				});
-
-			closeButton?.addEventListener('click', closeLightbox);
-			lightbox.addEventListener('click', (event) => {
-				if (event.target === lightbox) closeLightbox();
+			lightbox.addEventListener('close', () => {
+				document.documentElement.classList.remove('image-lightbox-open');
+				lightbox.classList.remove('is-closing');
+				(images[imageIndex]?.closest<HTMLElement>('.image-gallery a') || images[imageIndex])?.focus({ preventScroll: true });
 			});
-			lightbox.addEventListener('cancel', (event) => {
-				event.preventDefault();
-				closeLightbox();
+			images.forEach((image, index) => {
+				const trigger = image.closest<HTMLElement>('.image-gallery a') || image;
+				trigger.tabIndex = 0;
+				trigger.setAttribute('role', 'button');
+				trigger.setAttribute('aria-label', image.alt ? `preview image: ${image.alt}` : `preview image ${index + 1}`);
+				const open = (event: Event) => {
+					event.preventDefault();
+					showImage(index);
+					document.documentElement.classList.add('image-lightbox-open');
+					lightbox.showModal();
+					lightbox.focus();
+				};
+				trigger.addEventListener('click', open);
+				trigger.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') open(event); });
+			});
+			previous.addEventListener('click', () => showImage(imageIndex - 1));
+			next.addEventListener('click', () => showImage(imageIndex + 1));
+			lightbox.querySelector('[data-close]')?.addEventListener('click', closeLightbox);
+			lightbox.addEventListener('click', (event) => { if (event.target === lightbox) closeLightbox(); });
+			lightbox.addEventListener('cancel', (event) => { event.preventDefault(); closeLightbox(); });
+			lightbox.addEventListener('keydown', (event) => {
+				if (event.key === 'ArrowLeft') { event.preventDefault(); showImage(imageIndex - 1); }
+				if (event.key === 'ArrowRight') { event.preventDefault(); showImage(imageIndex + 1); }
 			});
 		}
 	</script>

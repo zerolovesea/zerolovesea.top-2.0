@@ -1,0 +1,24 @@
+---
+import '@styles/global.css';
+export const prerender = false;
+import { Highlight, Sidenote, RevealQuote, DecisionToggle, FlipCards, EnergyMeter, DecisionForm, AgentSimulation, CommitCompare } from '@components/interactive';
+const name = Astro.url.searchParams.get('component') || 'Highlight';
+const text = (Astro.url.searchParams.get('text') || '重要的想法，值得被看见。').slice(0, 2000);
+const teaser = (Astro.url.searchParams.get('teaser') || '文字背后的想法').slice(0, 500);
+const colorValue = Astro.url.searchParams.get('color') || 'yellow';
+const color = ['yellow', 'green', 'pink', 'blue'].includes(colorValue) ? colorValue as 'yellow' | 'green' | 'pink' | 'blue' : 'yellow';
+const safeQuote = text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+---
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>组件实际效果</title></head>
+<body class="bg-white text-neutral-900"><main class="demo prose prose-neutral">
+{name === 'Highlight' && <p>写作不只是记录。<Highlight color={color}>{text}</Highlight>让重点自然浮现。</p>}
+{name === 'Sidenote' && <p>正文保持流畅，补充信息留给旁注<Sidenote id="demo">{text}</Sidenote>。点击编号查看。</p>}
+{name === 'RevealQuote' && <RevealQuote teaser={teaser} button="展开看看" quote={safeQuote} />}
+{name === 'DecisionToggle' && <DecisionToggle />}
+{name === 'FlipCards' && <FlipCards />}
+{name === 'EnergyMeter' && <EnergyMeter />}
+{name === 'DecisionForm' && <DecisionForm />}
+{name === 'AgentSimulation' && <AgentSimulation />}
+{name === 'CommitCompare' && <CommitCompare />}
+</main><style is:global>body{margin:0!important;text-transform:none!important}.demo{margin:0 auto;padding:32px 24px;max-width:760px;min-height:200px}html{scrollbar-width:thin}</style>
+</body></html>

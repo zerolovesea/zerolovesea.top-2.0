@@ -10,18 +10,18 @@
 				<span class="text-xs font-medium text-gray-400 uppercase tracking-wide">AI Agent</span>
 			</div>
 			<button
-				id="agent-start"
+				data-agent="agent-start"
 				class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-full transition-colors"
 			>
 				Run simulation
 			</button>
 		</div>
 
-		<div id="agent-task" class="text-gray-200 font-medium mb-4 opacity-0">
+		<div data-agent="agent-task" class="text-gray-200 font-medium mb-4 opacity-0">
 			Processing discount request...
 		</div>
 
-		<div class="space-y-3" id="agent-steps">
+		<div class="space-y-3" data-agent="agent-steps">
 			<div class="agent-step opacity-0" data-step="1">
 				<div class="flex items-start gap-3">
 					<div class="step-icon w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -98,7 +98,7 @@
 			</div>
 		</div>
 
-		<div id="agent-complete" class="mt-5 pt-4 border-t border-gray-800 hidden">
+		<div data-agent="agent-complete" class="mt-5 pt-4 border-t border-gray-800 hidden">
 			<p class="text-xs text-green-400 font-medium">Decision trace captured with zero extra effort.</p>
 			<p class="text-xs text-gray-500 mt-1">The agent already had the context. It just saved it.</p>
 		</div>
@@ -106,10 +106,11 @@
 </div>
 
 <script>
-	const startBtn = document.getElementById('agent-start');
-	const taskEl = document.getElementById('agent-task');
-	const steps = document.querySelectorAll('.agent-step');
-	const completeEl = document.getElementById('agent-complete');
+	document.querySelectorAll('.agent-simulation-wrapper').forEach(wrapper => {
+	const startBtn = wrapper.querySelector('[data-agent="agent-start"]');
+	const taskEl = wrapper.querySelector('[data-agent="agent-task"]');
+	const steps = wrapper.querySelectorAll('.agent-step');
+	const completeEl = wrapper.querySelector('[data-agent="agent-complete"]');
 	let isRunning = false;
 
 	async function sleep(ms: number) {
@@ -202,4 +203,5 @@
 	});
 
 	startBtn?.addEventListener('click', runSimulation);
+	});
 </script>

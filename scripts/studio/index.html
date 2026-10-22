@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Tidemark — zerolovesea</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/site/favicon-32x32.png">
+  <link rel="apple-touch-icon" href="/site/apple-icon-180x180.png">
+  <link rel="stylesheet" href="studio.css">
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="/client/rich-editor.css">
+</head>
+<body>
+  <a class="skip" href="#main">跳到内容</a>
+  <aside class="sidebar" aria-label="主导航">
+    <button class="collapse-nav" id="collapse-nav" aria-label="收起侧栏" title="收起侧栏"><span data-icon="left"></span></button>
+    <a class="nav-home" href="#collections" aria-label="工作空间概览"><img src="/site/favicon-96x96.png" alt="" class="nav-logo"><span>概览</span></a>
+    <div class="nav-label">内容集合 <span data-icon="chevron"></span></div>
+    <nav id="content-nav"></nav>
+    <div class="nav-label">工具 <span data-icon="chevron"></span></div>
+    <nav id="workspace-nav"></nav>
+    <div class="sidebar-bottom">
+      <a class="nav-item" href="#trash" data-nav="trash"><span data-icon="trash"></span>回收站<span class="nav-count" id="trash-count">0</span></a>
+      <a class="nav-item" href="#settings" data-nav="settings"><span data-icon="settings"></span>设置</a>
+      <div class="profile"><span data-icon="code"></span><span>Tidemark</span><span class="tag muted-tag">local</span></div>
+    </div>
+  </aside>
+  <div class="app">
+    <header class="topbar"><div class="breadcrumb"><a class="brand-mark" href="#collections" aria-label="工作空间概览"><img src="/site/favicon-96x96.png" alt=""><span>ZeroLoveSeA</span></a><span class="slash">/</span><span id="crumb">内容集合</span></div><div class="top-actions"><button class="btn sm" id="publish-site" data-action="publish">发布网站</button><button class="search-trigger" id="global-search"><span data-icon="search"></span><span>搜索</span><kbd>⌘ k</kbd></button><button class="theme-toggle" id="studio-theme" aria-label="切换后台深色主题" title="切换主题"><span data-icon="moon"></span></button><span class="locale-label">语言：<strong>中文</strong><span data-icon="chevron"></span></span><span class="avatar" aria-label="yang zhou"><img src="/site/favicon-96x96.png" alt=""></span></div></header>
+    <main id="main" tabindex="-1"></main>
+    <footer class="app-footer"><span>zerolovesea / Tidemark</span><span>本地应用</span></footer>
+  </div>
+  <dialog id="modal" aria-labelledby="modal-title"></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+  <input id="markdown-input" type="file" accept=".md,.mdx" multiple hidden>
+  <script>window.STUDIO_TOKEN = "__STUDIO_TOKEN__";</script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -4,6 +4,8 @@ dist/
 .astro/
 # local Cloudflare/Wrangler state
 .wrangler/
+.local-studio/
+.env.local
 
 # dependencies
 node_modules/

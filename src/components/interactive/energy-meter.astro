@@ -110,7 +110,7 @@ const drains = [
 </style>
 
 <script>
-	const wrapper = document.querySelector('.energy-meter-wrapper');
+	document.querySelectorAll('.energy-meter-wrapper').forEach(wrapper => {
 	const percentEl = wrapper?.querySelector('.energy-percent');
 	const statusEl = wrapper?.querySelector('.energy-status');
 	const batteryBody = wrapper?.querySelector('.battery-body') as HTMLElement;
@@ -245,4 +245,5 @@ const drains = [
 	if (wrapper) {
 		observer.observe(wrapper);
 	}
+	});
 </script>

@@ -10,6 +10,9 @@
 		"astro": "./node_modules/.bin/astro",
 		"new": "bun scripts/new-post.ts",
 		"analytics": "bun scripts/analytics-server.ts",
+		"studio": "bun scripts/studio-server.ts",
+		"studio:macos:build": "bun scripts/studio/macos/build.ts",
+		"test:studio": "bun test scripts/studio/*.test.ts",
 		"s": "bun run astro dev",
 		"d": "bun run build && git add -A && (git diff --cached --quiet || git commit -m \"deploy: update site\") && git push origin main && bunx wrangler deploy --name sanju",
 		"test:reading-time": "bun scripts/test-reading-time.ts",
@@ -34,6 +37,15 @@
 	"devDependencies": {
 		"@biomejs/biome": "1.7.2",
 		"@tailwindcss/typography": "^0.5.20",
-		"echarts": "^6.1.0"
+		"@tiptap/core": "^3.32.0",
+		"@tiptap/extension-image": "^3.32.0",
+		"@tiptap/extension-table": "^3.32.0",
+		"@tiptap/extension-task-item": "^3.32.0",
+		"@tiptap/extension-task-list": "^3.32.0",
+		"@tiptap/markdown": "^3.32.0",
+		"@tiptap/starter-kit": "^3.32.0",
+		"echarts": "^6.1.0",
+		"rehype-sanitize": "^6.0.0",
+		"remark-gfm": "^4.0.1"
 	}
 }
