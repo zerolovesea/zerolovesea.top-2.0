@@ -276,10 +276,10 @@ function formatRich(type){
 }
 async function showPublish(){
   publishState=await api('publish-status');
-  if(publishState.running||publishState.finished){showPublishProgress();if(publishState.running)pollPublish();return;}
+  if(publishState.running){showPublishProgress();pollPublish();return;}
   if(dirty)throw new Error('请先保存当前内容，再发布网站');
   publishPlan=await api('publish-plan');
-  modal('发布网站','<p class="dialog-copy">执行 bun d：构建网站，将项目全部改动提交并推送到 main，然后部署。请检查本次清单。</p><pre class="publish-files">'+escape(publishPlan.changes||'没有文件改动，仍将构建并部署')+'</pre><details class="publish-command"><summary>查看执行命令</summary><pre>'+escape(publishPlan.script)+'</pre></details>',btn('取消','close')+btn('确认发布','confirm-publish','upload','primary'));
+  modal('发布网站','<p class="dialog-copy">执行 bun d：自动同步远程改动，构建网站，将项目全部改动提交并推送到 main，然后部署。请检查本次清单。</p><pre class="publish-files">'+escape(publishPlan.changes||'没有文件改动，仍将构建并部署')+'</pre><details class="publish-command"><summary>查看执行命令</summary><pre>'+escape(publishPlan.script)+'</pre></details>',btn('取消','close')+btn('确认发布','confirm-publish','upload','primary'));
 }
 async function startPublish(){
   if(!publishPlan)throw new Error('请先查看发布清单');
@@ -297,7 +297,7 @@ function pollPublish(){
 
 async function handle(work){try{await work();}catch(error){toast(error.message||'操作失败');}finally{window.dispatchEvent(new Event('tidemark-idle'));}}
 const actions={
-  'publish-review':async()=>{publishState={running:false};publishPlan=await api('publish-plan');modal('发布网站','<p class="dialog-copy">执行 bun d，将全部改动提交、推送并部署。</p><pre class="publish-files">'+escape(publishPlan.changes||'没有文件改动')+'</pre><pre class="publish-files">'+escape(publishPlan.script)+'</pre>',btn('取消','close')+btn('确认发布','confirm-publish','upload','primary'));},
+  'publish-review':showPublish,
   publish:showPublish,'confirm-publish':startPublish,
   'mode-markdown':()=>switchMode('markdown'),'mode-rich':()=>switchMode('rich'),
   'start-components':startComponents,

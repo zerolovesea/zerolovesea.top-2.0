@@ -14,7 +14,7 @@
 		"studio:macos:build": "bun scripts/studio/macos/build.ts",
 		"test:studio": "bun test scripts/studio/*.test.ts",
 		"s": "bun run astro dev",
-		"d": "bun run build && git add -A && (git diff --cached --quiet || git commit -m \"deploy: update site\") && git push origin main && bunx wrangler deploy --name sanju",
+		"d": "bun scripts/deploy.ts",
 		"test:reading-time": "bun scripts/test-reading-time.ts",
 		"check": "biome check ./src",
 		"lint": "biome lint ./src",
