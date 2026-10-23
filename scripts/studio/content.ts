@@ -24,7 +24,7 @@ export function validId(id: unknown): asserts id is string {
   if (typeof id !== 'string' || !/^(writing|writing-en|thought|thought-en)\/[^/\\\x00-\x1f]+\.(md|mdx)$/.test(id) || basename(id).startsWith('.')) throw new AppError('内容路径无效');
 }
 export function parseDocument(raw: string) {
-  const match = raw.replace(/^\uFEFF/, '').match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  const match = raw.replace(/^\uFEFF/, '').match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)(?:\r?\n)?/);
   if (!match) throw new AppError('缺少 YAML frontmatter');
   const meta = Bun.YAML.parse(match[1]);
   if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new AppError('frontmatter 必须是对象');
@@ -32,7 +32,11 @@ export function parseDocument(raw: string) {
   return { meta: meta as Record<string, any>, body: raw.replace(/^\uFEFF/, '').slice(match[0].length) };
 }
 export function serialize(meta: Record<string, any>, body: string) {
-  return `---\n${Bun.YAML.stringify(meta, null, 2).trim()}\n---\n\n${body.replace(/^\n+/, '')}`;
+  return `---\n${Bun.YAML.stringify(meta, null, 2).trim()}\n---\n\n${body}`;
+}
+export function syncThoughtContent(doc: any) {
+  if (doc.id.startsWith('thought')) doc.meta = { ...doc.meta, description: doc.body };
+  return doc;
 }
 export async function validateDocument(id: string, meta: any, body: unknown) {
   validId(id);
@@ -127,6 +131,7 @@ export class ContentStore {
   }
   async save(doc: any) {
     await validateDocument(doc.id, doc.meta, doc.body);
+    syncThoughtContent(doc);
     return this.exclusive(async () => {
       const originalId = doc.originalId || doc.id;
       validId(originalId);
@@ -158,6 +163,7 @@ export class ContentStore {
   async draft(doc: any) {
     validId(doc.id);
     if (typeof doc.body !== 'string' || doc.body.length > 2_000_000) throw new AppError('草稿无效');
+    syncThoughtContent(doc);
     const key = hash(doc.id);
     await atomic(resolve(this.state, 'drafts', `${key}.json`), JSON.stringify({ ...doc, savedAt: new Date().toISOString() }));
     return { key };

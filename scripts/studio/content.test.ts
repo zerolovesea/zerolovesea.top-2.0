@@ -10,7 +10,27 @@ beforeEach(async () => { root = await mkdtemp(resolve(tmpdir(), 'studio-test-'))
 afterEach(async () => { await rm(root, { recursive: true, force: true }); });
 const sample = () => ({ id: 'writing/中文 filename.md', revision: null, meta: { title: '中文标题', description: '', pubDate: '2026-10-22 12:00:00', custom: { keep: true } }, body: 'Hello $x^2$.\n\n$$\n\\frac{1}{2}\n$$\n' });
 
-test('YAML round trip preserves custom fields and math source', () => { const doc = sample(); expect(parseDocument(serialize(doc.meta, doc.body))).toEqual({ meta: doc.meta, body: '\n' + doc.body }); });
+test('YAML round trip preserves custom fields, math source and leading line breaks', () => {
+  const doc = sample();
+  for (const body of [doc.body, '\n\n' + doc.body]) expect(parseDocument(serialize(doc.meta, body))).toEqual({ meta: doc.meta, body });
+});
+test('Chinese and English thoughts synchronize multiline body into description on save and draft', async () => {
+  for (const collection of ['thought', 'thought-en']) {
+    const doc = { ...sample(), id: `${collection}/note.md`, meta: { ...sample().meta, category: '随笔', description: 'outdated summary' }, body: '第一行\n第二行\n\n下一段\n' };
+    await store.draft(structuredClone(doc));
+    const draft = (await store.drafts()).find(item => item.id === doc.id);
+    expect(draft.meta.description).toBe(doc.body);
+    const saved = await store.save(doc);
+    expect(saved.meta.description).toBe(doc.body);
+    expect(saved.body).toBe(doc.body);
+    expect(saved.meta.custom.keep).toBe(true);
+    const cleared = await store.save({ ...saved, body: '' });
+    expect(cleared.meta.description).toBe('');
+    expect(cleared.body).toBe('');
+  }
+  const writing = await store.save({ ...sample(), meta: { ...sample().meta, description: 'blog summary' } });
+  expect(writing.meta.description).toBe('blog summary');
+});
 test('save, stale revision conflict, backup and mdx conversion', async () => {
   const first = await store.save(sample());
   await expect(store.save({ ...sample(), body: 'overwrite' })).rejects.toThrow('外部修改');

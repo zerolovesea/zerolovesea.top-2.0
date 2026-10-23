@@ -9,12 +9,12 @@ import { buildClient } from './studio/client';
 import { chatImages, discuss } from './studio/chat';
 import { defaultConfig, messagesURL, callModel, translateDocument, type ModelConfig } from './studio/translate';
 
-export async function createStudio(root: string, options: { port?: number; previewPort?: number; key?: string } = {}) {
+export async function createStudio(root: string, options: { port?: number; previewPort?: number; key?: string; token?: string } = {}) {
   const store = new ContentStore(root);
   const publisher = new Publisher(root);
   const port = options.port || 4322;
   const preview = new Preview(store, options.previewPort || 4323);
-  const token = randomBytes(32).toString('hex');
+  const token = options.token || randomBytes(32).toString('hex');
   let key = options.key || process.env.STUDIO_LLM_API_KEY || '';
   let config: ModelConfig = { ...defaultConfig };
   try { config = { ...config, ...JSON.parse(await readFile(resolve(store.state, 'model.json'), 'utf8')) }; } catch (error: any) { if (error.code !== 'ENOENT') throw error; }
@@ -157,7 +157,7 @@ if (import.meta.main) {
   const port = Number(process.env.STUDIO_PORT || 4322);
   const key = process.argv.includes('--ask-key') ? prompt('API key（仅本次运行）:') || '' : undefined;
   await buildClient(root);
-  const app = await createStudio(root, { port, previewPort: Number(process.env.STUDIO_PREVIEW_PORT || 4323), key });
+  const app = await createStudio(root, { port, previewPort: Number(process.env.STUDIO_PREVIEW_PORT || 4323), key, token: process.env.STUDIO_NATIVE_TOKEN });
   const server = Bun.serve({ hostname: '127.0.0.1', port, idleTimeout: 255, maxRequestBodySize: 24 * 1024 * 1024, fetch: app.fetch });
   console.log(`local studio → ${server.url}\n本地内容管理，保存不会部署。`);
   const shutdown = () => { app.close(); server.stop(true); process.exit(0); };

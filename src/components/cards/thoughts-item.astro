@@ -19,7 +19,7 @@ const { category, content, pubDate, index, slug, locale = "zh" } = Astro.props;
 			<span class='underline decoration-wavy'>{category}</span>
 		</h5>
 		<h1
-			class='text-black dark:text-black font-medium w-full sm:text-xl md:text-2xl indent-9'>
+			class='text-black dark:text-black font-medium w-full sm:text-xl md:text-2xl indent-9 whitespace-pre-wrap'>
 			{content}
 		</h1>
 		<p class='text-black w-full text-end font-medium text-sm'>

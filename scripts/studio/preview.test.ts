@@ -48,5 +48,15 @@ test('isolated Astro preview renders MDX, KaTeX and shared image navigation with
     const resumed = await preview.prepare(doc);
     expect((await fetch(resumed.url)).status).toBe(200);
 
+    const thought = { id: 'thought/note.md', meta: { title: 'Thought fixture', category: '随笔', description: '', pubDate: '2026-10-23' }, body: 'First line\nSecond line\n\nNext paragraph' };
+    const thoughtPreview = await preview.prepare(thought);
+    const detail = await (await fetch(thoughtPreview.url)).text();
+    expect(detail).toContain('First line\nSecond line');
+    expect(detail).toContain('white-space: pre-wrap');
+    const listing = await (await fetch(new URL('/thoughts', thoughtPreview.url))).text();
+    expect(listing).toContain('First line\nSecond line\n\nNext paragraph');
+    expect(listing).toContain('whitespace-pre-wrap');
+    expect(await Bun.file(resolve(root, 'src/content/thought/note.md')).exists()).toBe(false);
+
   } finally { preview.stop(); if (preview.child) await preview.child.exited; await rm(root, { recursive: true, force: true }); }
 }, 90_000);

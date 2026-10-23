@@ -71,13 +71,14 @@ const {
 				{
 				showTldr && (
 					<p
-						class='w-full text-start font-medium text-gray-700 dark:text-gray-300 text-lg leading-relaxed'>
+						class='w-full text-start font-medium text-gray-700 dark:text-gray-300 text-lg leading-relaxed whitespace-pre-wrap'>
 						<span class='font-semibold'>tl;dr: </span>
 						{description}
 					</p>
 				)
 				}
 				<div
+					data-thought-content
 					class={clsx(
 						'relative',
 					'w-full max-w-none prose prose-lg leading-relaxed my-3 prose-p:font-medium dark:prose-invert prose-a:underline items-center justify-center',
@@ -98,6 +99,10 @@ const {
 	<ReadingAnalytics />
 
 	<style is:global>
+		[data-thought-content] :is(p, li) {
+			white-space: pre-wrap;
+		}
+
 		#blog-content .prose :is(h2, h3, h4)[id] {
 			position: relative;
 			cursor: pointer;

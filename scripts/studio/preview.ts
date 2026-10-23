@@ -1,7 +1,7 @@
 import { cp, mkdir, readdir, readFile, symlink, rm, realpath } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { setPriority } from 'node:os';
-import { ContentStore, serialize, validateDocument, atomic, AppError, stem } from './content';
+import { ContentStore, serialize, validateDocument, syncThoughtContent, atomic, AppError, stem } from './content';
 
 export class Preview {
   child: ReturnType<typeof Bun.spawn> | null = null;
@@ -36,6 +36,7 @@ export class Preview {
   prepare(doc: any) {
     const task = this.queue.then(async () => {
       await validateDocument(doc.id, doc.meta, doc.body);
+      syncThoughtContent(doc);
       // Preview content is copied, never symlinked: draft writes cannot reach real collections.
       const target = resolve(this.store.state, `preview-${this.port}/src/content`);
       this.child?.kill();

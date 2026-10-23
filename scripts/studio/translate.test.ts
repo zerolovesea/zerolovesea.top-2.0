@@ -41,3 +41,14 @@ test('translation compiles restored formulas and never uses thinking as article 
   expect(result.document.body).toContain('$x^{2}$');
   expect(result.document.body).toContain('![图片](/_posts/math/test.png)');
 });
+test('thought translation uses the full translated body as description, preserving line breaks', async () => {
+  const doc = { id: 'thought/note.md', meta: { title: '随笔', description: '', category: '随笔', pubDate: '2026-10-23' }, body: '第一行\n第二行\n\n下一段' };
+  const body = 'First line\nSecond line\n\nNext paragraph';
+  const result = await translateDocument(doc, defaultConfig, 'test-secret', new AbortController().signal, () => {}, (async (_, options) => {
+    const prompt = JSON.parse(options!.body as string).messages[0].content;
+    return Response.json({ model: 'alternate', stop_reason: 'end_turn', content: [{ type: 'text', text: prompt.startsWith('Translate the values') ? JSON.stringify({ title: 'Note', description: 'short summary', category: 'Notes' }) : body }] });
+  }) as typeof fetch);
+  expect(result.document.id).toBe('thought-en/note.md');
+  expect(result.document.body).toBe(body);
+  expect(result.document.meta.description).toBe(body);
+});

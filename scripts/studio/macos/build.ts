@@ -19,7 +19,7 @@ async function run(args: string[]) {
   const child = Bun.spawn(args, { cwd: root, stdout: 'inherit', stderr: 'inherit' });
   if (await child.exited !== 0) throw new Error(`构建失败：${args[0]}`);
 }
-await run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-O', '-framework', 'AppKit', '-framework', 'WebKit', '-framework', 'QuartzCore', '-target', `${process.arch === 'arm64' ? 'arm64' : 'x86_64'}-apple-macosx13.0`, resolve(import.meta.dir, 'Studio.swift'), resolve(import.meta.dir, 'LaunchView.swift'), resolve(import.meta.dir, 'QuickWrite.swift'), '-o', resolve(contents, 'MacOS/Tidemark')]);
+await run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-O', '-framework', 'AppKit', '-framework', 'WebKit', '-framework', 'QuartzCore', '-target', `${process.arch === 'arm64' ? 'arm64' : 'x86_64'}-apple-macosx13.0`, resolve(import.meta.dir, 'Studio.swift'), resolve(import.meta.dir, 'LaunchView.swift'), resolve(import.meta.dir, 'QuickWrite.swift'), resolve(import.meta.dir, 'QuickThoughtPanel.swift'), '-o', resolve(contents, 'MacOS/Tidemark')]);
 const widgetBuild = resolve(root, '.local-studio/widget-build');
 await run(['xcodebuild', '-project', resolve(import.meta.dir, 'Widgets.xcodeproj'), '-scheme', 'TidemarkWidgets', '-configuration', 'Release', '-sdk', 'macosx', '-derivedDataPath', resolve(root, '.local-studio/widget-derived'), 'CODE_SIGNING_ALLOWED=NO', `ARCHS=${process.arch === 'arm64' ? 'arm64' : 'x86_64'}`, `CONFIGURATION_BUILD_DIR=${widgetBuild}`, 'build']);
 await cp(resolve(widgetBuild, 'TidemarkWidgets.appex'), resolve(extension, '..'), { recursive: true });
@@ -42,8 +42,8 @@ await writeFile(resolve(contents, 'Info.plist'), `<?xml version="1.0" encoding="
 <key>CFBundleIdentifier</key><string>top.zerolovesea.studio</string>
 <key>CFBundleName</key><string>Tidemark</string>
 <key>CFBundleDisplayName</key><string>Tidemark</string>
-<key>CFBundleVersion</key><string>6</string>
-<key>CFBundleShortVersionString</key><string>1.3</string>
+<key>CFBundleVersion</key><string>9</string>
+<key>CFBundleShortVersionString</key><string>1.4.2</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>

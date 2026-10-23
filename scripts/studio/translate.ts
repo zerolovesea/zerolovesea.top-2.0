@@ -3,7 +3,7 @@ import remarkMath from 'remark-math';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 import { randomUUID } from 'node:crypto';
-import { AppError, validateDocument } from './content';
+import { AppError, validateDocument, syncThoughtContent } from './content';
 
 export type ModelConfig = { endpoint: string; model: string; maxTokens: number };
 export const defaultConfig: ModelConfig = { endpoint: 'https://one.iflytek.com/api/llm/console/chat', model: 'claude-opus-4-8', maxTokens: 2048 };
@@ -103,7 +103,7 @@ export async function translateDocument(doc: any, config: ModelConfig, key: stri
   }
   const collection = doc.id.split('/')[0].replace(/-en$/, '') + '-en';
   const id = `${collection}/${doc.id.split('/')[1]}`;
-  const translated = { id, meta: { ...doc.meta, title: fields.title, description: fields.description, ...(fields.category ? { category: fields.category } : {}) }, body: protectedBody.restore(output.join('\n\n')), revision: null };
+  const translated = syncThoughtContent({ id, meta: { ...doc.meta, title: fields.title, description: fields.description, ...(fields.category ? { category: fields.category } : {}) }, body: protectedBody.restore(output.join('\n\n')), revision: null });
   await validateDocument(id, translated.meta, translated.body);
   return { document: translated, models: reports, completed: parts.length };
 }

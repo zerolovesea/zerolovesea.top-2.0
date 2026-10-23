@@ -23,6 +23,8 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
     var editorReady = false
     var pendingQuickWrite: QuickWriteKind?
     var deliveringQuickWrite = false
+    let nativeToken = UUID().uuidString + UUID().uuidString
+    var quickThought: QuickThoughtPanel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         makeMenu()
@@ -79,6 +81,7 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
             return item
         }
         _ = add("打开 Tidemark", #selector(showWindow))
+        _ = add("快速发布随笔…", #selector(showQuickThought))
         lowPowerItem = add("节能模式", #selector(toggleLowPower))
         lowPowerItem.state = lowPower ? .on : .off
         menu.addItem(.separator())
@@ -88,6 +91,7 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
     }
 
     @objc func showWindow() {
+        quickThought?.popover.performClose(nil)
         backgroundGeneration += 1
         suspending = false
         web?.evaluateJavaScript("window.studioNative?.foreground()", completionHandler: nil)
@@ -103,6 +107,16 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
         NSApp.activate(ignoringOtherApps: true)
     }
     @objc func quit() { NSApp.terminate(nil) }
+    @objc func showQuickThought() {
+        guard ready else { NSSound.beep(); return }
+        if quickThought == nil {
+            quickThought = QuickThoughtPanel(port: port, token: nativeToken)
+            quickThought?.onPublished = { [weak self] in self?.web?.evaluateJavaScript("window.studioNative?.refreshContent()", completionHandler: nil) }
+        }
+        guard let quickThought, let button = statusItem.button else { return }
+        if quickThought.popover.isShown { quickThought.popover.performClose(nil) }
+        else { DispatchQueue.main.async { quickThought.present(relativeTo: button) } }
+    }
     @objc func toggleLowPower() {
         lowPower.toggle()
         UserDefaults.standard.set(lowPower, forKey: "low-power-residency")
@@ -211,6 +225,7 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
         app.addItem(.separator())
         app.addItem(withTitle: "退出 Tidemark", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         let file = section("文件")
+        item(file, "快速发布随笔…", #selector(showQuickThought))
         item(file, "保存文档", #selector(save), "s")
         item(file, "在 Finder 中显示项目", #selector(revealProject))
         item(file, "关闭窗口", #selector(closeWindow), "w")
@@ -253,6 +268,7 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
         environment["STUDIO_PORT"] = String(port)
         environment["STUDIO_PREVIEW_PORT"] = String(port + 1)
         environment["STUDIO_LLM_API_KEY"] = ""
+        environment["STUDIO_NATIVE_TOKEN"] = nativeToken
         task.environment = environment
         let pipe = Pipe()
         task.standardOutput = pipe
@@ -273,6 +289,7 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
         task.terminationHandler = { [weak self] process in
             Task { @MainActor [weak self] in
                 guard let self, !self.stopping else { return }
+                self.quickThought?.serviceStopped()
                 self.fail("本地服务已退出（\(process.terminationStatus)）。端口 \(self.port) 可能被占用。\n\(self.logs)")
             }
         }
@@ -320,6 +337,13 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if stopping { return .terminateNow }
+        if quickThought?.busy == true {
+            let alert = NSAlert()
+            alert.messageText = "随笔正在发布"
+            alert.informativeText = "请等待发布结束后再退出。"
+            alert.runModal()
+            return .terminateCancel
+        }
         if !ready || web == nil { stop(); return .terminateNow }
         confirmLeaving { allow in
             if allow { self.stop() }
@@ -341,7 +365,7 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
     func applicationWillTerminate(_ notification: Notification) { if !stopping { stop() } }
     func windowShouldClose(_ sender: NSWindow) -> Bool { closeWindow(); return false }
     func applicationDidHide(_ notification: Notification) { background() }
-    func applicationDidUnhide(_ notification: Notification) { showWindow() }
+    func applicationDidUnhide(_ notification: Notification) { if quickThought?.popover.isShown != true { showWindow() } }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         showWindow()
         return true
@@ -357,7 +381,7 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
     @objc func fullscreen() { window.toggleFullScreen(nil) }
     @objc func reload() { confirmLeaving { if $0 { self.web?.reload() } } }
     @objc func about() {
-        NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "Tidemark", .applicationVersion: "1.3", .credits: NSAttributedString(string: "ZeroLoveSeA · 本地博文与 thought 管理\nAppKit + WebKit · 内容保存到当前博客项目")])
+        NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "Tidemark", .applicationVersion: "1.4.2", .credits: NSAttributedString(string: "ZeroLoveSeA · 本地博文与 thought 管理\nAppKit + WebKit · 内容保存到当前博客项目")])
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
