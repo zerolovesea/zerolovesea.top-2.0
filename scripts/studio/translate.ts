@@ -18,7 +18,7 @@ export async function callModel(config: ModelConfig, key: string, prompt: string
   return requestModel(config, key, [{ role: 'user', content: prompt }], signal, fetcher);
 }
 export async function requestModel(config: ModelConfig, key: string, messages: any[], signal?: AbortSignal, fetcher = fetch, system = '') {
-  if (!key) throw new AppError('请在设置中输入本次运行的 API key，或设置 STUDIO_LLM_API_KEY');
+  if (!key) throw new AppError('请在设置中保存 API key，或设置 STUDIO_LLM_API_KEY');
   const url = messagesURL(config.endpoint);
   let response: Response | undefined;
   for (let attempt = 0; attempt < 2; attempt++) {

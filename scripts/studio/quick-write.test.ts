@@ -40,7 +40,7 @@ test('quick creation backs up the previous edited document and stops if backup f
   const original = {id:'writing/original.md',meta:{title:'未完成的文章'},body:'正在编辑的内容'};
   const copies: any[] = [];
   const state: any = {doc:structuredClone(original),dirty:true,chatController:null,chatOpen:false,translationController:null,translation:null,previewURL:'',drafts:[],
-    newDoc:(kind: string)=>({id:kind+'/new.md',body:''}),go:()=>{},
+    persistTranslation:async()=>{},newDoc:(kind: string)=>({id:kind+'/new.md',body:''}),go:()=>{},
     api:async(route: string,value?: any)=>{if(route==='draft')copies.push(structuredClone(value));return {drafts:[]};},
   };
   runInNewContext(preserve+chooseNew+'\nglobalThis.create = chooseNew;',state);

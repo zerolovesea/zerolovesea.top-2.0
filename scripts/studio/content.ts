@@ -174,6 +174,31 @@ export class ContentStore {
     return result;
   }
   async discardDraft(id: string) { validId(id); await unlink(resolve(this.state, 'drafts', `${hash(id)}.json`)).catch(() => {}); }
+  async translationDraft(id: string) {
+    validId(id);
+    const path = resolve(this.state, 'translation-drafts', `${hash(id.replace(/\.mdx?$/, ''))}.json`);
+    try { return JSON.parse(await readFile(path, 'utf8')); }
+    catch (error: any) { if (error.code === 'ENOENT') return null; throw error; }
+  }
+  async saveTranslationDraft(data: any) {
+    const id = data.source?.id || data.id;
+    validId(id);
+    if (id.split('/')[0].endsWith('-en')) throw new AppError('临时译文需要关联中文原文');
+    const path = resolve(this.state, 'translation-drafts', `${hash(id.replace(/\.mdx?$/, ''))}.json`);
+    if (data.discard === true) {
+      await unlink(path).catch((error: any) => { if (error.code !== 'ENOENT') throw error; });
+      return { ok: true };
+    }
+    const target = data.translation?.document;
+    validId(target?.id);
+    if (target.id.split('/')[0] !== `${id.split('/')[0]}-en` || stem(target.id) !== stem(id)) throw new AppError('临时译文与原文不匹配');
+    for (const doc of [data.source, target]) {
+      if (!doc?.meta || typeof doc.meta !== 'object' || Array.isArray(doc.meta) || typeof doc.body !== 'string' || doc.body.length > 2_000_000) throw new AppError('临时译文格式无效或过大');
+    }
+    syncThoughtContent(target);
+    await atomic(path, JSON.stringify({ source: data.source, translation: data.translation, savedAt: new Date().toISOString() }));
+    return { ok: true };
+  }
   async remove(id: string, revision: string, english = false) {
     return this.exclusive(async () => {
       const doc = await this.read(id);

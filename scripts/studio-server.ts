@@ -17,7 +17,12 @@ export async function createStudio(root: string, options: { port?: number; previ
   const token = options.token || randomBytes(32).toString('hex');
   let key = options.key || process.env.STUDIO_LLM_API_KEY || '';
   let config: ModelConfig = { ...defaultConfig };
-  try { config = { ...config, ...JSON.parse(await readFile(resolve(store.state, 'model.json'), 'utf8')) }; } catch (error: any) { if (error.code !== 'ENOENT') throw error; }
+  try {
+    const saved = JSON.parse(await readFile(resolve(store.state, 'model.json'), 'utf8'));
+    const { endpoint, model, maxTokens } = { ...config, ...saved };
+    config = { endpoint, model, maxTokens };
+    key ||= typeof saved.key === 'string' ? saved.key : '';
+  } catch (error: any) { if (error.code !== 'ENOENT') throw error; }
   const json = (value: any, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
   const modelStatus = () => ({ ...config, hasKey: Boolean(key) });
   async function payload(request: Request) {
@@ -41,6 +46,7 @@ export async function createStudio(root: string, options: { port?: number; previ
           if (route === '/api/publish-status') return json(publisher.state);
           if (route === '/api/init') return json({ documents: await store.list(), drafts: await store.drafts(), config: modelStatus(), components: componentNames });
           if (route === '/api/document') return json(await store.read(url.searchParams.get('id') || ''));
+          if (route === '/api/translation-draft') return json(await store.translationDraft(url.searchParams.get('id') || ''));
           if (route === '/api/assets') return json(await store.assets());
           if (route === '/api/trash') return json(await store.trash());
           if (route === '/api/versions') {
@@ -68,6 +74,7 @@ export async function createStudio(root: string, options: { port?: number; previ
         if (route === '/api/parse') { validId(data.id); if (typeof data.raw !== 'string' || data.raw.length > 2_000_000) throw new AppError('导入文档过大'); return json({ id: data.id, ...parseDocument(data.raw), revision: null }); }
         if (route === '/api/save') { const doc = await store.save(data); await store.discardDraft(data.originalId || data.id); if (data.originalId !== data.id) await store.discardDraft(data.id); return json(doc); }
         if (route === '/api/draft') return json(await store.draft(data));
+        if (route === '/api/translation-draft') return json(await store.saveTranslationDraft(data));
         if (route === '/api/discard-draft') { await store.discardDraft(data.id); return json({ ok: true }); }
         if (route === '/api/delete') return json(await store.remove(data.id, data.revision, data.english === true));
         if (route === '/api/restore') return json(await store.restore(data.token));
@@ -87,11 +94,13 @@ export async function createStudio(root: string, options: { port?: number; previ
           const maxTokens = Number(data.maxTokens);
           if (!Number.isInteger(maxTokens) || maxTokens < 256 || maxTokens > 32000) throw new AppError('max_tokens 范围为 256–32000');
           if (data.key !== undefined && typeof data.key !== 'string') throw new AppError('密钥格式无效');
-          if (new URL(data.endpoint).origin !== new URL(config.endpoint).origin && !data.key?.trim()) key = '';
-          config = { endpoint: data.endpoint.trim(), model: data.model.trim(), maxTokens };
-          if (data.key?.trim()) key = data.key.trim();
-          if (data.clearKey) key = '';
-          await atomic(resolve(store.state, 'model.json'), JSON.stringify(config));
+          const nextConfig = { endpoint: data.endpoint.trim(), model: data.model.trim(), maxTokens };
+          let nextKey = new URL(nextConfig.endpoint).origin === new URL(config.endpoint).origin ? key : '';
+          if (data.key?.trim()) nextKey = data.key.trim();
+          if (data.clearKey) nextKey = '';
+          await atomic(resolve(store.state, 'model.json'), JSON.stringify({ ...nextConfig, key: nextKey }));
+          config = nextConfig;
+          key = nextKey;
           return json(modelStatus());
         }
         if (route === '/api/test-model') {

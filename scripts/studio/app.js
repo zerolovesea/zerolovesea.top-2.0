@@ -41,6 +41,7 @@ let quickFocus='';
 let propertiesOpen=false;
 let editorMode='markdown',richEditor=null,richModule=null,richOwner=null,richBody='',richGeneration=0,componentDialog=false;
 let publishState={running:false},publishPlan=null,publishTimer;
+let translationTimer=null,translationSaving=0,translationSave=Promise.resolve();
 const chats=new Map();
 const componentLabels={Highlight:'高亮标记',Sidenote:'旁注',RevealQuote:'展开引用',DecisionToggle:'决策切换',FlipCards:'翻转卡片',EnergyMeter:'能量指示',DecisionForm:'决策表单',AgentSimulation:'智能体模拟',CommitCompare:'提交对比'};
 function singlePicker(id,label,value,options){return `<details class="format-picker"><summary id="${id}" aria-label="${label}">${icon('filter')}<span class="choice-label">${escape(options.find(x=>x[0]===value)?.[1]||value)}</span>${icon('chevron')}</summary><div class="format-options" role="group" aria-label="${label}">${options.map(([key,text,note=''])=>`<button type="button" data-choice="${id}" data-value="${key}" aria-pressed="${key===value}"><span class="format-check">${key===value?icon('check'):''}</span><span>${text}</span><small>${note}</small></button>`).join('')}</div></details>`;}
@@ -63,8 +64,24 @@ function close(){componentDialog=false;$('#modal').close();}
 function head(title,desc,actions=''){return `<div class="page-head"><div><h1>${title}</h1><p>${escape(desc)}</p></div><div class="head-actions">${actions}</div></div>`;}
 async function refresh(){const state=await api('init');documents=state.documents;drafts=state.drafts;config=state.config;componentNames=state.components;}
 function counterpart(id){const target=collectionOf(id).replace(/-en$/,'')+(isEnglish(id)?'':'-en');return documents.find(x=>collectionOf(x.id)===target&&stemOf(x.id)===stemOf(id));}
-async function preserve(){if(doc&&dirty){await api('draft',doc);drafts=await api('init').then(x=>x.drafts);}}
-async function openDoc(id,fromDraft=false){chatController?.abort();chatOpen=false;translationController?.abort();translationController=null;if(doc?.id!==id)await preserve();doc=fromDraft?structuredClone(drafts.find(x=>x.id===id)):await api('document?id='+encodeURIComponent(id));doc.originalId??=doc.id;dirty=fromDraft;sourcePosition=doc.body.length;translation=null;previewURL='';go('editor');}
+async function persistTranslation(){
+  clearTimeout(translationTimer);translationTimer=null;
+  if(!translation?.document||translation.saved)return translationSave;
+  const {source,...review}=translation;const draft=structuredClone({source:source||doc,translation:review});
+  translationSaving++;
+  const save=translationSave.catch(()=>{}).then(()=>api('translation-draft',draft));
+  translationSave=save.finally(()=>{translationSaving--;window.dispatchEvent(new Event('tidemark-idle'));});
+  return translationSave;
+}
+function scheduleTranslationSave(){clearTimeout(translationTimer);translationTimer=setTimeout(()=>void handle(persistTranslation),350);}
+async function restoreTranslation(){
+  if(!doc||isEnglish(doc.id))return null;
+  const draft=await api('translation-draft?id='+encodeURIComponent(doc.id));
+  if(!draft)return null;
+  return {...draft.translation,source:draft.source,progress:draft.source.body===doc.body&&JSON.stringify(draft.source.meta)===JSON.stringify(doc.meta)?'已恢复临时译文，等待人工校对':'已恢复临时译文；原文已有修改，请核对'};
+}
+async function preserve(){await persistTranslation();if(doc&&dirty){await api('draft',doc);drafts=await api('init').then(x=>x.drafts);}}
+async function openDoc(id,fromDraft=false){chatController?.abort();chatOpen=false;translationController?.abort();translationController=null;await preserve();doc=fromDraft?structuredClone(drafts.find(x=>x.id===id)):await api('document?id='+encodeURIComponent(id));doc.originalId??=doc.id;dirty=fromDraft;sourcePosition=doc.body.length;translation=await restoreTranslation();previewURL='';go('editor');}
 function go(next){if(location.hash.slice(1)===next){page=next;render();}else location.hash=next;}
 function newDoc(kind='writing'){
   const collection=kind+(language==='en'?'-en':'');
@@ -142,7 +159,7 @@ function renderTranslation(){
 }
 function modelReport(){const models=translation?.models;if(!models?.length)return '接口返回的 model 将与配置模型并列展示。';return [...new Set(models.map(x=>`配置：${x.configuredModel} / 返回：${x.returnedModel}`))].join('；');}
 function renderPreview(){return head('本地预览',doc?doc.id:'请选择内容',doc?btn('返回编辑','editor','left')+btn('重新编译当前内容','build-preview','undo','primary'):'')+`<div class="preview-controls"><span class="preview-address">${escape(previewURL||'尚未启动隔离预览')}</span><div class="actions"><button class="btn sm" data-action="preview-device">${icon(previewMobile?'desktop':'mobile')}${previewMobile?'桌面宽度':'手机宽度'}</button>${previewURL?`<a class="btn sm" href="${escape(previewURL)}" target="_blank" rel="noopener">独立窗口</a>`:''}</div></div><div class="preview-canvas">${previewURL?`<iframe class="live-preview ${previewMobile?'phone':''}" title="真实 Astro 页面预览" src="${escape(previewURL)}" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>`:`<div class="empty"><h2>${pending?'正在启动 Astro…':'使用真实站点布局预览'}</h2><p>内容保存在隔离工作区，使用同一套布局、MDX 组件、图片与 KaTeX 渲染。不会写入正式集合。</p>${doc?`<button class="btn primary" data-action="build-preview" ${pending?'disabled':''}>启动预览</button>`:''}</div>`}</div>`;}
-function renderSettings(){return head('设置','模型配置写入本地忽略目录；密钥仅保存在当前服务进程内。',btn('保存设置','save-settings','check','primary'))+`<div class="settings-layout"><nav class="settings-nav"><a href="#settings">自定义 Claude</a><a href="#drafts">本地草稿</a></nav><div><section class="settings-section"><h2>Anthropic Messages</h2><p>使用 x-api-key 与 anthropic-version，不使用 OpenAI Chat Completions。</p>${field('基础 endpoint','model-endpoint',config.endpoint,'url')}${field('配置模型','model-name',config.model)}${field('max_tokens（输出达到上限时阻止保存）','model-max',config.maxTokens,'number','min="256" max="32000"')}${field('API key（留空保持当前密钥）','model-key','','password','autocomplete="new-password"')}<p class="muted">${config.hasKey?'已有本次运行密钥':'未配置密钥，可设置环境变量 STUDIO_LLM_API_KEY 或在此输入。'} · 密钥不写磁盘、不返回浏览器。</p><div class="actions section-space">${btn('测试当前已保存配置','test-model','link')}${btn('清除运行密钥','clear-key','trash','ghost')}</div><div id="test-result" class="notice section-space">最终路径追加 /v1/messages；配置与返回模型名不同时允许使用并提示。</div></section><section class="settings-section"><h2>本地文件与恢复</h2><p>正式内容：src/content。图片：public/_posts 与 public/_thoughts。草稿、备份、回收站及预览位于 .local-studio。</p><div class="notice">只绑定 127.0.0.1。保存不会提交 Git、推送或部署。覆盖前保留旧版本，冲突时停止保存。</div></section></div></div>`;}
+function renderSettings(){return head('设置','模型配置和密钥保存在本机，重启后自动恢复。',btn('保存设置','save-settings','check','primary'))+`<div class="settings-layout"><nav class="settings-nav"><a href="#settings">自定义 Claude</a><a href="#drafts">本地草稿</a></nav><div><section class="settings-section"><h2>Anthropic Messages</h2><p>使用 x-api-key 与 anthropic-version，不使用 OpenAI Chat Completions。</p>${field('基础 endpoint','model-endpoint',config.endpoint,'url')}${field('配置模型','model-name',config.model)}${field('max_tokens（输出达到上限时阻止保存）','model-max',config.maxTokens,'number','min="256" max="32000"')}${field('API key（留空保留已保存密钥）','model-key','','password','autocomplete="new-password"')}<p class="muted">${config.hasKey?'已配置密钥，重启后可继续使用':'未配置密钥，可设置环境变量 STUDIO_LLM_API_KEY 或在此输入。'} · 完整密钥不会回显，也不会随网站发布。</p><div class="actions section-space">${btn('测试当前已保存配置','test-model','link')}${btn('清除保存的密钥','clear-key','trash','ghost')}</div><div id="test-result" class="notice section-space">最终路径追加 /v1/messages；配置与返回模型名不同时允许使用并提示。</div></section><section class="settings-section"><h2>本地文件与恢复</h2><p>正式内容：src/content。图片：public/_posts 与 public/_thoughts。草稿、备份、回收站及预览位于 .local-studio。</p><div class="notice">只绑定 127.0.0.1。保存不会提交 Git、推送或部署。覆盖前保留旧版本，冲突时停止保存。</div></section></div></div>`;}
 function renderDrafts(){return head('本地草稿','位于 .local-studio/drafts，不参与站点构建。')+(drafts.length?`<div class="table-wrap"><table><thead><tr><th></th><th>文档</th><th>备份时间</th><th>操作</th></tr></thead><tbody>${drafts.map(x=>`<tr><td></td><td><button data-draft="${escape(x.id)}" class="link">${escape(x.meta?.title||x.id)}</button><div class="path">${escape(x.id)}</div></td><td>${escape(x.savedAt||'')}</td><td><button class="btn sm" data-discard="${escape(x.id)}">丢弃草稿</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty"><h2>暂无本地草稿</h2><p>编辑内容后会自动备份草稿，也可手动保存。</p></div>');}
 function renderTrash(){return head('回收站','内容可以恢复，图片默认保留。',trash.length?btn('永久清空','clear-trash','trash'):'')+(trash.length?`<div class="table-wrap"><table><thead><tr><th></th><th>内容</th><th>移除时间</th><th>操作</th></tr></thead><tbody>${trash.map(x=>`<tr><td></td><td>${x.ids.map(escape).join('<br>')}</td><td>${escape(x.date)}</td><td><button class="btn sm" data-restore="${x.token}">恢复</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty"><h2>回收站为空</h2><p>删除内容会先移到这里，不直接永久删除。</p></div>');}
 function dropPosition(area,x,y){
@@ -190,20 +207,20 @@ async function uploadImages(files,position=sourcePosition){
     await api('draft',current);if(page==='media'){assets=await api('assets');render();}
   }finally{anchors.splice(anchors.indexOf(anchor),1);}
 }
-async function loadPage(next){page=next;if(page==='media')assets=await api('assets');if(page==='trash')trash=await api('trash');if(page==='drafts')await refresh();render();if(page==='components'&&!componentPreviewURL)await startComponents();}
+async function loadPage(next){await persistTranslation();page=next;if(page==='translations'&&doc&&!translation?.document&&!translationController)translation=await restoreTranslation();if(page==='media')assets=await api('assets');if(page==='trash')trash=await api('trash');if(page==='drafts')await refresh();render();if(page==='components'&&!componentPreviewURL)await startComponents();}
 async function buildPreview(document=doc){
   if(!document)throw new Error('请先打开内容');const ownerId=doc?.id;previewURL='';pending=true;page='preview';if(location.hash!=='#preview')location.hash='preview';render();
   try{const result=await api('preview',document);if(doc?.id!==ownerId)return;previewURL=result.url;toast('真实 Astro 预览已就绪');}finally{pending=false;render();}
 }
 async function generateTranslation(){
-  ensureDoc();if(isEnglish(doc.id))throw new Error('请选择中文内容');translationController?.abort();const controller=new AbortController();translationController=controller;translation={progress:'准备翻译…',models:[]};render();
+  ensureDoc();if(isEnglish(doc.id))throw new Error('请选择中文内容');await persistTranslation();const previous=translation,source=structuredClone(doc);translationController?.abort();const controller=new AbortController();translationController=controller;translation={progress:'准备翻译…',models:[]};render();
   try{
-    const response=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json','x-studio-token':window.STUDIO_TOKEN},body:JSON.stringify(doc),signal:controller.signal});
+    const response=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json','x-studio-token':window.STUDIO_TOKEN},body:JSON.stringify(source),signal:controller.signal});
     if(!response.ok){const error=await response.json();throw new Error(error.error);}
     const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='',completed=false;
-    while(true){const {value,done}=await reader.read();buffer+=decoder.decode(value||new Uint8Array(),{stream:!done});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines){if(!line.trim())continue;const event=JSON.parse(line);if(event.type==='error')throw new Error(event.error);if(event.type==='progress'){translation.progress=event.total?`正文 ${event.done} / ${event.total}`:'翻译标题与摘要…';translation.models=event.models||[];if($('#translation-progress'))$('#translation-progress').textContent=translation.progress;if($('#model-report'))$('#model-report').textContent=modelReport();}if(event.type==='result'){translation={...event,progress:'翻译完成，等待人工校对'};completed=true;}}if(done)break;}
-    if(!completed)throw new Error('翻译连接中断，未收到完整结果');toast('译文已生成，确认保存后才写入英文集合');
-  }catch(error){if(error.name==='AbortError')toast('已取消翻译');else throw error;}
+    while(true){const {value,done}=await reader.read();if(translationController!==controller||doc?.id!==source.id)return;buffer+=decoder.decode(value||new Uint8Array(),{stream:!done});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines){if(!line.trim())continue;const event=JSON.parse(line);if(event.type==='error')throw new Error(event.error);if(event.type==='progress'){translation.progress=event.total?`正文 ${event.done} / ${event.total}`:'翻译标题与摘要…';translation.models=event.models||[];if($('#translation-progress'))$('#translation-progress').textContent=translation.progress;if($('#model-report'))$('#model-report').textContent=modelReport();}if(event.type==='result'){translation={...event,source,progress:'翻译完成，正在暂存…'};await persistTranslation();translation.progress='译文已自动暂存，等待人工校对';completed=true;}}if(done)break;}
+    if(!completed)throw new Error('翻译连接中断，未收到完整结果');toast('译文已自动暂存，确认保存后才写入英文集合');
+  }catch(error){if(translationController===controller&&!translation?.document)translation=previous;if(error.name==='AbortError')toast('已取消翻译');else throw error;}
   finally{if(translationController===controller)translationController=null;if(page==='translations')render();}
 }
 async function deleteDocuments(items){
@@ -320,10 +337,10 @@ const actions={
   'save-translated':async()=>{
     if(!translation?.document)throw new Error('没有可保存译文');
     modal('保存英文版？',`<p class="dialog-copy">${escape(translation.document.id)}${translation.document.revision?' 已存在，覆盖前将保存历史版本。':' 将新建。'}中文原文和图片不变。</p>`,btn('返回校对','close')+btn('确认保存','confirm-translation','check','primary'));
-    $('#modal [data-action="confirm-translation"]').onclick=()=>handle(async()=>{translation.document=await api('save',translation.document);translation.document.originalId=translation.document.id;close();await refresh();render();toast('英文版本已写入本地文件');});
+    $('#modal [data-action="confirm-translation"]').onclick=()=>handle(async()=>{translation.document=await api('save',translation.document);translation.document.originalId=translation.document.id;translation.saved=true;clearTimeout(translationTimer);translationTimer=null;await translationSave.catch(()=>{});translationSave=Promise.resolve();await api('translation-draft',{id:translation.source?.id||doc.id,discard:true});close();await refresh();render();toast('英文版本已写入本地文件');});
   },
-  'save-settings':async()=>{config=await api('settings',{endpoint:$('#model-endpoint').value,model:$('#model-name').value,maxTokens:Number($('#model-max').value),key:$('#model-key').value});render();toast('配置已保存；密钥仅在当前服务运行期间有效');},
-  'clear-key':async()=>{config=await api('settings',{...config,clearKey:true});render();toast('已清除本次运行密钥');},
+  'save-settings':async()=>{config=await api('settings',{endpoint:$('#model-endpoint').value,model:$('#model-name').value,maxTokens:Number($('#model-max').value),key:$('#model-key').value});render();toast('设置和密钥已保存，重启后自动恢复');},
+  'clear-key':async()=>{config=await api('settings',{...config,clearKey:true});render();toast('已清除保存的密钥');},
   'test-model':async()=>{const target=$('#test-result');target.textContent='正在测试…';try{const result=await api('test-model',{});target.textContent=`${result.success?'连接测试通过':'已连接，但返回文本不匹配'} · 配置模型：${result.configuredModel} · 接口返回：${result.returnedModel}`;}catch(error){target.textContent=error.message;throw error;}},
   versions,
   'clear-trash':()=>{modal('永久清空回收站','<p class="dialog-copy">清空后无法通过回收站恢复。图片不受影响。</p>'+field('输入“清空”确认','clear-confirm'),btn('取消','close')+btn('永久清空','confirm-clear','trash','danger'));$('#modal [data-action="confirm-clear"]').onclick=()=>handle(async()=>{await api('clear-trash',{confirmation:$('#clear-confirm').value});close();trash=await api('trash');render();toast('回收站已清空');});},
@@ -354,7 +371,7 @@ document.addEventListener('input',event=>{
   if(id==='extra-meta'){try{const meta=JSON.parse(target.value);if(!meta||Array.isArray(meta)||typeof meta!=='object')throw 0;doc.meta=meta;markDirty();target.setCustomValidity('');}catch{target.setCustomValidity('需要有效的 JSON 对象');}}
   if(id==='list-query'){query=target.value;pageNumber=1;const selection=target.selectionStart;render();$('#list-query').focus();$('#list-query').setSelectionRange(selection,selection);}
   if(id.startsWith('component-')&&$('#component-code')){$('#component-code').textContent=componentSnippet();syncComponentPreview();}
-  if(id.startsWith('translated-')&&translation?.document){const key=id.slice(11);if(key==='body'){translation.document.body=target.value;if(isThought(translation.document.id))translation.document.meta.description=target.value;}else translation.document.meta[key]=target.value;}
+  if(id.startsWith('translated-')&&translation?.document){const key=id.slice(11);if(key==='body'){translation.document.body=target.value;if(isThought(translation.document.id))translation.document.meta.description=target.value;}else translation.document.meta[key]=target.value;translation.saved=false;scheduleTranslationSave();}
 });
 document.addEventListener('change',event=>void handle(async()=>{
   const target=event.target;
@@ -372,7 +389,7 @@ $('#studio-theme').onclick=()=>{const dark=document.documentElement.classList.to
 $('#collapse-nav').onclick=()=>{const collapsed=document.body.classList.toggle('nav-collapsed');$('#collapse-nav').setAttribute('aria-label',collapsed?'展开侧栏':'收起侧栏');};
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('.format-picker[open]')){const picker=$('.format-picker[open]');picker.removeAttribute('open');picker.querySelector('summary').focus();event.preventDefault();}if((event.metaKey||event.ctrlKey)&&event.key==='Enter'&&event.target.id==='chat-input'){event.preventDefault();void handle(sendChat);}if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='s'){event.preventDefault();void handle(saveDoc);}if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){event.preventDefault();showSearch();}});
 let nativeReady=false,nativeBackground=0;
-const nativeBusy=()=>publishState.running||dirty||uploadCount>0||pending||componentLoading||translationController!==null||chatController!==null;
+const nativeBusy=()=>translationTimer!==null||translationSaving>0||publishState.running||dirty||uploadCount>0||pending||componentLoading||translationController!==null||chatController!==null;
 async function stopPreview(){
   if(pending||componentLoading)throw new Error('请等待当前操作完成后再停止预览');
   await api('preview-stop',{});previewURL='';componentPreviewURL='';if(page==='preview'||page==='components')render();
@@ -395,7 +412,8 @@ window.studioNative = Object.freeze({
     while(publishState.running||pending||componentLoading||uploadCount||translationController||chatController)await new Promise(resolve=>window.addEventListener('tidemark-idle',resolve,{once:true}));
     if(generation!==nativeBackground)return null;
     await stopPreview();
-    if(generation!==nativeBackground||nativeBusy()||translation||chatOpen||[...chats.values()].some(x=>x.input||x.messages.length)||page==='settings'||$('#modal').open||(doc&&doc.revision===null))return null;
+    await persistTranslation();
+    if(generation!==nativeBackground||nativeBusy()||chatOpen||[...chats.values()].some(x=>x.input||x.messages.length)||page==='settings'||$('#modal').open||(doc&&doc.revision===null))return null;
     sourcePosition=$('#post-body')?.selectionStart??sourcePosition;
     return JSON.stringify({id:doc?.originalId||doc?.id,page,sourcePosition,language,format,query,pageNumber,assetFolder,previewMobile,dark:document.documentElement.classList.contains('studio-dark')});
   },
