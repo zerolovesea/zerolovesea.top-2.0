@@ -1,0 +1,27 @@
+{
+  "same_pipeline": {
+    "max_channel_delta": 0,
+    "different_pixels": 0
+  },
+  "initial_ink_pixels": 0,
+  "vector_vs_animation": {
+    "max_channel_delta": 72,
+    "mean_channel_delta": 0.10107163525132275,
+    "different_pixels": 5363
+  },
+  "easing_verified_times": [
+    540,
+    720,
+    900
+  ],
+  "reduced_motion_diff": 5359,
+  "reduced_motion_mean_channel_delta": 0.10099855914588057,
+  "controls": [
+    "live speed",
+    "slow toggle",
+    "replay",
+    "four interactive vector atoms",
+    "reduced-motion atoms static"
+  ],
+  "page_errors": []
+}

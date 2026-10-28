@@ -1,0 +1,39 @@
+{
+  "html": "design/logo-motion/logo_motion.html",
+  "times_ms": [
+    0,
+    180,
+    360,
+    720,
+    1080,
+    1260,
+    1440,
+    1512,
+    1548,
+    1584,
+    1674,
+    1800
+  ],
+  "frames": [
+    "design/logo-motion/outputs/motion_frames/frame_000000ms.png",
+    "design/logo-motion/outputs/motion_frames/frame_000180ms.png",
+    "design/logo-motion/outputs/motion_frames/frame_000360ms.png",
+    "design/logo-motion/outputs/motion_frames/frame_000720ms.png",
+    "design/logo-motion/outputs/motion_frames/frame_001080ms.png",
+    "design/logo-motion/outputs/motion_frames/frame_001260ms.png",
+    "design/logo-motion/outputs/motion_frames/frame_001440ms.png",
+    "design/logo-motion/outputs/motion_frames/frame_001512ms.png",
+    "design/logo-motion/outputs/motion_frames/frame_001548ms.png",
+    "design/logo-motion/outputs/motion_frames/frame_001584ms.png",
+    "design/logo-motion/outputs/motion_frames/frame_001674ms.png",
+    "design/logo-motion/outputs/motion_frames/frame_001800ms.png"
+  ],
+  "strip": "design/logo-motion/outputs/motion_strip.png",
+  "final_frame_contract": {
+    "final_frame": "design/logo-motion/outputs/motion_frames/frame_001800ms.png",
+    "static_render": "design/logo-motion/final_render.png",
+    "mean_abs_diff": 0.502,
+    "max_abs_diff": 88.0,
+    "pct_pixels_off_by_25plus": 0.628
+  }
+}

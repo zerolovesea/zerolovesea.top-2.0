@@ -1,0 +1,8 @@
+{
+  "svg": "design/logo-motion/logo.svg",
+  "source": "design/logo-motion/source.png",
+  "overlay": "design/logo-motion/outputs/fit_iterations/01_analytic_overlay.png",
+  "iou": 0.9815,
+  "src_only_px": 21,
+  "render_only_px": 144
+}

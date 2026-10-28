@@ -6,15 +6,18 @@ import { Preview } from './studio/preview';
 import { Publisher } from './studio/publish';
 import { prepareRich } from './studio/rich';
 import { buildClient } from './studio/client';
+import { analyticsReader } from './studio/analytics';
 import { chatImages, discuss } from './studio/chat';
 import { defaultConfig, messagesURL, callModel, translateDocument, type ModelConfig } from './studio/translate';
 
-export async function createStudio(root: string, options: { port?: number; previewPort?: number; key?: string; token?: string } = {}) {
+export async function createStudio(root: string, options: { port?: number; previewPort?: number; key?: string; token?: string; widgetToken?: string; analyticsRun?: Parameters<typeof analyticsReader>[1] } = {}) {
   const store = new ContentStore(root);
+  const analytics = analyticsReader(store.state, options.analyticsRun);
   const publisher = new Publisher(root);
   const port = options.port || 4322;
   const preview = new Preview(store, options.previewPort || 4323);
   const token = options.token || randomBytes(32).toString('hex');
+  const widgetToken = options.widgetToken || process.env.STUDIO_WIDGET_TOKEN || '';
   let key = options.key || process.env.STUDIO_LLM_API_KEY || '';
   let config: ModelConfig = { ...defaultConfig };
   try {
@@ -39,9 +42,19 @@ export async function createStudio(root: string, options: { port?: number; previ
       const origin = request.headers.get('origin');
       if (origin && ![`http://${expectedHost}`, `http://localhost:${port}`].includes(origin)) throw new AppError('不允许的来源', 403);
       if (url.pathname.startsWith('/api/')) {
+        if (url.pathname === '/api/widget-analytics') {
+          if (!widgetToken || request.headers.get('x-tidemark-widget-token') !== widgetToken) throw new AppError('小组件连接无效', 403);
+          if (request.method !== 'GET') throw new AppError('不支持此方法', 405);
+          const data = await analytics();
+          return json({ generatedAt: data.generatedAt, stale: Boolean(data.stale), windows: Object.fromEntries(Object.entries(data.windows).map(([name, value]: [string, any]) => [name, {
+            views: value.views, visitors: value.visitors, timeseries: value.timeseries,
+            country: value.country, city: value.city, language: value.language,
+          }])) });
+        }
         if (request.headers.get('x-studio-token') !== token) throw new AppError('本地会话无效，请刷新页面', 403);
         const route = url.pathname;
         if (request.method === 'GET') {
+          if (route === '/api/analytics') return json(await analytics(url.searchParams.get('refresh') === '1'));
           if (route === '/api/publish-plan') return json(await publisher.plan());
           if (route === '/api/publish-status') return json(publisher.state);
           if (route === '/api/init') return json({ documents: await store.list(), drafts: await store.drafts(), config: modelStatus(), components: componentNames });

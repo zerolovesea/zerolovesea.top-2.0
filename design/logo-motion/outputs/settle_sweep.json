@@ -1,0 +1,112 @@
+{
+ "html": "design/logo-motion/logo_motion.html",
+ "ink_sweep": {
+  "times": [
+   1700,
+   1710,
+   1720,
+   1730,
+   1740,
+   1750,
+   1760,
+   1770,
+   1780,
+   1790,
+   1800,
+   1810,
+   1820
+  ],
+  "ink": [
+   3758,
+   3763,
+   3763,
+   3762,
+   3761,
+   3762,
+   3763,
+   3764,
+   3764,
+   3764,
+   3763,
+   3763,
+   3763
+  ],
+  "deltas": [
+   5,
+   0,
+   -1,
+   -1,
+   1,
+   1,
+   1,
+   0,
+   0,
+   -1,
+   0,
+   0
+  ],
+  "median_delta": 1,
+  "flags": [
+   {
+    "t": 1710,
+    "delta": 5,
+    "kind": "jump"
+   },
+   {
+    "t": 1720,
+    "delta": 0,
+    "kind": "flatline"
+   },
+   {
+    "t": 1730,
+    "delta": -1,
+    "kind": "flatline"
+   },
+   {
+    "t": 1740,
+    "delta": -1,
+    "kind": "flatline"
+   },
+   {
+    "t": 1750,
+    "delta": 1,
+    "kind": "flatline"
+   },
+   {
+    "t": 1760,
+    "delta": 1,
+    "kind": "flatline"
+   },
+   {
+    "t": 1770,
+    "delta": 1,
+    "kind": "flatline"
+   },
+   {
+    "t": 1780,
+    "delta": 0,
+    "kind": "flatline"
+   },
+   {
+    "t": 1790,
+    "delta": 0,
+    "kind": "flatline"
+   },
+   {
+    "t": 1800,
+    "delta": -1,
+    "kind": "flatline"
+   },
+   {
+    "t": 1810,
+    "delta": 0,
+    "kind": "flatline"
+   },
+   {
+    "t": 1820,
+    "delta": 0,
+    "kind": "flatline"
+   }
+  ]
+ }
+}

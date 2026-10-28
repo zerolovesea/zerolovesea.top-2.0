@@ -7,6 +7,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
+import { slug } from 'github-slugger';
 
 export const collections = ['writing', 'writing-en', 'thought', 'thought-en'];
 export class AppError extends Error {
@@ -120,7 +121,7 @@ export class ContentStore {
       for (const file of await filesUnder(resolve(this.content, collection))) {
         if (!/\.(md|mdx)$/.test(file) || file.includes('/')) continue;
         const id = `${collection}/${file}`;
-        try { const doc = await this.read(id); result.push({ id, meta: doc.meta, revision: doc.revision, format: extname(file).slice(1) }); }
+        try { const doc = await this.read(id); result.push({ id, slug: doc.meta.slug || slug(stem(id)), meta: doc.meta, revision: doc.revision, format: extname(file).slice(1) }); }
         catch (error) { result.push({ id, error: error instanceof Error ? error.message : '读取失败' }); }
       }
     }

@@ -1,0 +1,20 @@
+{
+ "html": "design/logo-motion/logo_motion.html",
+ "probe": [
+  {
+   "t": 540.0,
+   "#body-line:stroke-dashoffset": "0.906118px",
+   "#tail-line:stroke-dashoffset": "0.145443px"
+  },
+  {
+   "t": 720.0,
+   "#body-line:stroke-dashoffset": "0.347122px",
+   "#tail-line:stroke-dashoffset": "0.025576px"
+  },
+  {
+   "t": 900.0,
+   "#body-line:stroke-dashoffset": "0.110392px",
+   "#tail-line:stroke-dashoffset": "0px"
+  }
+ ]
+}

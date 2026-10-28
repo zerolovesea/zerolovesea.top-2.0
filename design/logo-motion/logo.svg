@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 300 300" role="img" aria-labelledby="logo-title">
+<title id="logo-title">zerolovesea cat</title>
+<g id="mark" stroke="#444b54" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round">
+ <g id="tail"><path id="tail-fill" fill="#d3d8dd" stroke="none" d="M107 202 L127 207 L139 214 H94 C81 214 82 195 97 199.5 Z"/><path id="tail-line" fill="none" pathLength="1" d="M107 202 L97 199.5 C82 195 81 214 94 214 L139 214"/></g>
+ <g id="body"><path id="body-fill" stroke="none" fill="#d3d8dd" d="M139 214 C126 214 117 207 121 192 L143 94 C155 108 168 108 178 94 L201 193 C205 205 197 214 184 214 Z"/><path id="body-line" fill="none" pathLength="1" d="M139 214 C126 214 117 207 121 192 L143 94 C155 108 168 108 178 94 L201 193 C205 205 197 214 184 214"/></g>
+ <path id="leg-left" fill="none" pathLength="1" d="M139 164 L148 207 C150 217 161 216 161 207"/>
+ <path id="leg-right" fill="none" pathLength="1" d="M182 164 L174 207 C172 217 161 216 161 207"/>
+ <path id="chest" fill="none" pathLength="1" d="M161 174 L161 207"/>
+ <g id="face" fill="#444b54" stroke="none"><circle id="eye-left" cx="151" cy="124" r="3"/><circle id="eye-right" cx="171" cy="124" r="3"/></g>
+</g>
+</svg>

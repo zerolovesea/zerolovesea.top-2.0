@@ -1,0 +1,72 @@
+#logo-root svg {
+  --p2m-duration:1800ms;
+  --p2m-ease-enter:cubic-bezier(.34,0,.14,1);
+  --p2m-ease-settle:cubic-bezier(.22,1,.36,1);
+  --p2m-ease-gentle:cubic-bezier(.4,0,.2,1);
+}
+#logo-root #mark{transform-box:view-box;transform-origin:161px 214px;animation:p2m-arrive var(--p2m-duration) linear both}
+#logo-root #tail{transform-box:view-box;transform-origin:139px 214px;animation:p2m-tail var(--p2m-duration) linear both}
+#logo-root #body-fill{animation:p2m-body-fill var(--p2m-duration) linear both}
+#logo-root #tail-fill{animation:p2m-tail-fill var(--p2m-duration) linear both}
+#logo-root :is(#tail-line,#body-line,#leg-left,#leg-right,#chest){stroke-dasharray:1 1.2}
+#logo-root #tail-line{animation:p2m-tail-draw var(--p2m-duration) linear both}
+#logo-root #body-line{animation:p2m-body-draw var(--p2m-duration) linear both}
+#logo-root #leg-left{animation:p2m-left-draw var(--p2m-duration) linear both}
+#logo-root #leg-right{animation:p2m-right-draw var(--p2m-duration) linear both}
+#logo-root #chest{animation:p2m-chest-draw var(--p2m-duration) linear both}
+#logo-root :is(#eye-left,#eye-right){transform-box:fill-box;transform-origin:center}
+#logo-root #eye-left{animation:p2m-left-eye var(--p2m-duration) linear both}
+#logo-root #eye-right{animation:p2m-right-eye var(--p2m-duration) linear both}
+@keyframes p2m-arrive{
+  0%{transform:translate(-2px,9px) scale(.96);animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  20%{transform:translate(-2px,12px) scale(.94);animation-timing-function:cubic-bezier(.34,0,.14,1)} /* enter */
+  63%{transform:translate(0,-1.5px) scale(1.015);animation-timing-function:cubic-bezier(.22,1,.36,1)} /* settle */
+  84%{transform:translate(0,.3px) scale(.998);animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  100%{transform:none}
+}
+@keyframes p2m-tail{
+  0%,12%{transform:rotate(4deg);animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  47%{transform:rotate(-3deg);animation-timing-function:cubic-bezier(.22,1,.36,1)}
+  77%{transform:rotate(1.2deg);animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  100%{transform:none}
+}
+@keyframes p2m-tail-draw{
+  0%,6%{stroke-dashoffset:1.1;animation-timing-function:cubic-bezier(.34,0,.14,1)}
+  49%,100%{stroke-dashoffset:0}
+}
+@keyframes p2m-body-draw{
+  0%,21%{stroke-dashoffset:1.1;animation-timing-function:cubic-bezier(.34,0,.14,1)}
+  69%,100%{stroke-dashoffset:0}
+}
+@keyframes p2m-left-draw{
+  0%,45%{stroke-dashoffset:1.1;animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  73%,100%{stroke-dashoffset:0}
+}
+@keyframes p2m-right-draw{
+  0%,49%{stroke-dashoffset:1.1;animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  78%,100%{stroke-dashoffset:0}
+}
+@keyframes p2m-chest-draw{
+  0%,58%{stroke-dashoffset:1.1;animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  82%,100%{stroke-dashoffset:0}
+}
+@keyframes p2m-body-fill{
+  0%,23%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  61%,100%{opacity:1}
+}
+@keyframes p2m-tail-fill{
+  0%,34%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  57%,100%{opacity:1}
+}
+@keyframes p2m-left-eye{
+  0%,57%{opacity:0;transform:scale(.85);animation-timing-function:cubic-bezier(.22,1,.36,1)}
+  68%,80%{opacity:1;transform:none;animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  84%{opacity:1;transform:scaleY(.12);animation-timing-function:cubic-bezier(.22,1,.36,1)}
+  90%,100%{opacity:1;transform:none}
+}
+@keyframes p2m-right-eye{
+  0%,61%{opacity:0;transform:scale(.85);animation-timing-function:cubic-bezier(.22,1,.36,1)}
+  72%,82%{opacity:1;transform:none;animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  86%{opacity:1;transform:scaleY(.12);animation-timing-function:cubic-bezier(.22,1,.36,1)}
+  93%,100%{opacity:1;transform:none}
+}

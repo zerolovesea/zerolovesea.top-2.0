@@ -42,6 +42,7 @@ let propertiesOpen=false;
 let editorMode='markdown',richEditor=null,richModule=null,richOwner=null,richBody='',richGeneration=0,componentDialog=false;
 let publishState={running:false},publishPlan=null,publishTimer;
 let translationTimer=null,translationSaving=0,translationSave=Promise.resolve();
+let analyticsData=null,analyticsLoading=false,analyticsError='',analyticsWindow='近7天',analyticsMetric='views';
 const chats=new Map();
 const componentLabels={Highlight:'高亮标记',Sidenote:'旁注',RevealQuote:'展开引用',DecisionToggle:'决策切换',FlipCards:'翻转卡片',EnergyMeter:'能量指示',DecisionForm:'决策表单',AgentSimulation:'智能体模拟',CommitCompare:'提交对比'};
 function singlePicker(id,label,value,options){return `<details class="format-picker"><summary id="${id}" aria-label="${label}">${icon('filter')}<span class="choice-label">${escape(options.find(x=>x[0]===value)?.[1]||value)}</span>${icon('chevron')}</summary><div class="format-options" role="group" aria-label="${label}">${options.map(([key,text,note=''])=>`<button type="button" data-choice="${id}" data-value="${key}" aria-pressed="${key===value}"><span class="format-check">${key===value?icon('check'):''}</span><span>${text}</span><small>${note}</small></button>`).join('')}</div></details>`;}
@@ -101,7 +102,7 @@ async function chooseNew(kind){chatController?.abort();chatOpen=false;translatio
 const navs=[['writing','file','博文','content-nav'],['thoughts','thought','随想','content-nav'],['media','image','图片资源','content-nav'],['components','blocks','组件库','workspace-nav'],['translations','translate','翻译工作台','workspace-nav'],['preview','eye','本地预览','workspace-nav']];
 for(const [name,glyph,label,target]of navs)$('#'+target).insertAdjacentHTML('beforeend',`<a class="nav-item" data-nav="${name}" href="#${name}" title="${label}">${icon(glyph)}${label}<span class="nav-count" data-count="${name}"></span></a>`);
 $$('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon));
-const labels={collections:'内容集合',writing:'博文',thoughts:'随想',editor:'编辑内容',media:'图片资源',components:'组件库',translations:'翻译工作台',preview:'本地预览',settings:'设置',trash:'回收站',drafts:'本地草稿'};
+const labels={collections:'概览',writing:'博文',thoughts:'随想',editor:'编辑内容',media:'图片资源',components:'组件库',translations:'翻译工作台',preview:'本地预览',settings:'设置',trash:'回收站',drafts:'本地草稿'};
 function render(){
   if(renderedId){if($('#post-body'))editorScroll.set(renderedId+':markdown',$('#post-body').scrollTop);if($('#rich-editor'))editorScroll.set(renderedId+':rich',$('#rich-editor').scrollTop);}
   renderedId=page==='editor'?doc?.id:null;
@@ -114,8 +115,41 @@ function render(){
   const views={collections:renderHome,writing:renderList,thoughts:renderList,editor:renderEditor,media:renderAssets,components:renderComponents,translations:renderTranslation,preview:renderPreview,settings:renderSettings,trash:renderTrash,drafts:renderDrafts};
   $('#main').innerHTML=(views[page]||renderHome)();bindEditor();
 }
+async function loadAnalytics(force=false){
+  if(analyticsLoading)return;analyticsLoading=true;analyticsError='';if(page==='collections')render();
+  try{analyticsData=await api('analytics'+(force?'?refresh=1':''));analyticsError=analyticsData.error||'';}
+  catch(error){analyticsError=error.message;}
+  finally{analyticsLoading=false;if(page==='collections')render();}
+}
+function analyticsName(key,value){
+  if(!value)return '未知';
+  if(key==='country'||key==='language')try{return new Intl.DisplayNames(['zh-CN'],{type:key==='country'?'region':'language'}).of(String(value))||value;}catch{}
+  return String(value);
+}
+function renderTrend(series){
+  const values=analyticsMetric==='views'?series.values:series.uniques;
+  if(!values.length)return '<p class="analytics-empty">暂无趋势数据</p>';
+  const max=Math.max(2,Math.ceil(Math.max(...values)/2)*2),x=i=>48+i*812/Math.max(1,values.length-1),y=v=>210-v/max*178;
+  const points=values.map((v,i)=>`${x(i)},${y(v)}`).join(' ');
+  const ticks=[...new Set([0,Math.floor((values.length-1)/2),values.length-1])];
+  return `<svg class="analytics-chart" viewBox="0 0 900 260" role="img" aria-label="${analyticsMetric==='views'?'阅读量 PV':'访客 UV'}趋势，时间按本机时区"><title>${analyticsMetric==='views'?'阅读量 PV':'访客 UV'}趋势</title>${[0,.5,1].map(r=>`<line x1="48" y1="${y(max*r)}" x2="860" y2="${y(max*r)}" class="chart-grid"/><text x="36" y="${y(max*r)+4}" text-anchor="end">${Math.round(max*r)}</text>`).join('')}<polyline points="${points}" class="chart-line"/>${values.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="3" class="chart-point" tabindex="0" aria-label="${escape(series.labels[i])}：${v}"><title>${escape(series.labels[i])} · ${v}</title></circle>`).join('')}${ticks.map(i=>`<text x="${x(i)}" y="244" text-anchor="${i===0?'start':i===values.length-1?'end':'middle'}">${escape(series.labels[i])}</text>`).join('')}</svg>`;
+}
+function renderRanking(rows,key,title,total){
+  const max=Math.max(1,...rows.map(r=>r.n));
+  const row=(r,i)=>{
+    let name=analyticsName(key,r.k);
+    if(key==='posts'){const match=documents.find(d=>!isEnglish(d.id)&&(d.slug||stemOf(d.id))===String(r.k));name=match?.meta?.title||r.k||'未知文章';}
+    return `<li><span class="rank-index">${i+1}</span><div class="rank-detail"><div class="rank-label"><span title="${escape(name)}">${escape(name)}</span><span>${Number(r.n).toLocaleString('zh-CN')}${key==='posts'?`<small> / ${Number(r.u||0).toLocaleString('zh-CN')} UV</small>`:`<small> · ${total?Math.round(r.n/total*100):0}%</small>`}</span></div><div class="rank-track"><span style="width:${Math.min(100,r.n/max*100)}%"></span></div></div></li>`;
+  };
+  return `<section class="analytics-ranking"><div class="analytics-section-head"><h2>${title}</h2><span class="muted">${key==='posts'?'PV / UV':'阅读量占比'}${rows.length===50?' · 前 50 项':''}</span></div>${rows.length?`<ol>${rows.slice(0,5).map(row).join('')}</ol>${rows.length>5?`<details><summary>展开其余 ${rows.length-5} 项</summary><ol start="6">${rows.slice(5).map((r,i)=>row(r,i+5)).join('')}</ol></details>`:''}`:'<p class="analytics-empty">此时间段暂无数据</p>'}</section>`;
+}
 function renderHome(){
-  return head('内容集合','管理本地 Markdown / MDX 内容。')+`<div class="collection-grid">${[['writing','博文','writing'],['thoughts','随想','thought'],['media','图片资源',null]].map(([to,title,kind])=>`<a class="collection-tile" href="#${to}"><h2>${title}</h2><span class="collection-count">${kind?documents.filter(x=>collectionOf(x.id)===kind).length+' 篇内容':'共享图片'}</span><span class="collection-plus">${icon('plus')}</span></a>`).join('')}</div><h2 class="collection-heading">工具</h2><div class="collection-grid">${[['components','组件库',componentNames.length+' 个组件'],['translations','翻译工作台',config.model],['preview','本地预览','Astro · 隔离工作区'],['drafts','本地草稿',drafts.length+' 份草稿']].map(([to,title,detail])=>`<a class="collection-tile" href="#${to}"><h2>${title}</h2><span class="collection-count">${escape(detail)}</span><span class="collection-plus">${icon('plus')}</span></a>`).join('')}</div>`;
+  const w=analyticsData?.windows?.[analyticsWindow];
+  const controls=singlePicker('analytics-window','统计时间段',analyticsWindow,['今天','近24小时','近7天','近15天','近30天','近半年'].map(x=>[x,x]))+`<button class="btn" data-action="refresh-analytics" ${analyticsLoading?'disabled':''}>${icon('undo')}${analyticsLoading?'更新中…':'刷新数据'}</button>`;
+  const header=head('阅读概览','',controls);
+  const notice=analyticsError?`<div class="analytics-notice" role="status">${escape(analyticsError)}${analyticsData?' 当前显示上次成功获取的数据。':''}</div>`:'';
+  if(!w)return header+notice+`<div class="analytics-empty" role="status">${analyticsLoading?'正在读取线上阅读数据…':'暂无可用统计，点击刷新数据重试。'}</div>`;
+  return header+notice+`<div class="analytics-metrics">${[['阅读量','PV',w.views],['独立访客','UV',w.visitors],['访问次数','sessions',w.visits]].map(([label,unit,n])=>`<div><span>${label} <small>${unit}</small></span><strong>${n.toLocaleString('zh-CN')}</strong></div>`).join('')}</div><section class="analytics-trend"><div class="analytics-section-head"><h2>阅读趋势</h2><div class="segmented"><button data-analytics-metric="views" class="${analyticsMetric==='views'?'active':''}" aria-pressed="${analyticsMetric==='views'}">阅读量 PV</button><button data-analytics-metric="visitors" class="${analyticsMetric==='visitors'?'active':''}" aria-pressed="${analyticsMetric==='visitors'}">访客 UV</button></div></div>${renderTrend(w.timeseries)}</section><div class="analytics-rankings">${renderRanking(w.posts,'posts','热门文章',w.views)}${renderRanking(w.country,'country','国家 / 地区',w.views)}${renderRanking(w.city,'city','城市',w.views)}${renderRanking(w.language,'language','访客语言',w.views)}</div><div class="analytics-foot"><span>更新于 ${escape(new Date(analyticsData.generatedAt).toLocaleString('zh-CN'))} · 本机时区 · 15 分钟缓存</span></div><div class="analytics-shortcuts"><a href="#writing">博文 ${icon('arrow')}</a><a href="#thoughts">随想 ${icon('arrow')}</a><a href="#drafts">本地草稿 ${icon('arrow')}</a></div>`;
 }
 function renderList(){
   const kind=page==='thoughts'?'thought':'writing';const collection=kind+(language==='en'?'-en':'');
@@ -207,7 +241,7 @@ async function uploadImages(files,position=sourcePosition){
     await api('draft',current);if(page==='media'){assets=await api('assets');render();}
   }finally{anchors.splice(anchors.indexOf(anchor),1);}
 }
-async function loadPage(next){await persistTranslation();page=next;if(page==='translations'&&doc&&!translation?.document&&!translationController)translation=await restoreTranslation();if(page==='media')assets=await api('assets');if(page==='trash')trash=await api('trash');if(page==='drafts')await refresh();render();if(page==='components'&&!componentPreviewURL)await startComponents();}
+async function loadPage(next){await persistTranslation();page=next;if(page==='translations'&&doc&&!translation?.document&&!translationController)translation=await restoreTranslation();if(page==='media')assets=await api('assets');if(page==='trash')trash=await api('trash');if(page==='drafts')await refresh();render();if(page==='collections')void loadAnalytics();if(page==='components'&&!componentPreviewURL)await startComponents();}
 async function buildPreview(document=doc){
   if(!document)throw new Error('请先打开内容');const ownerId=doc?.id;previewURL='';pending=true;page='preview';if(location.hash!=='#preview')location.hash='preview';render();
   try{const result=await api('preview',document);if(doc?.id!==ownerId)return;previewURL=result.url;toast('真实 Astro 预览已就绪');}finally{pending=false;render();}
@@ -314,6 +348,7 @@ function pollPublish(){
 
 async function handle(work){try{await work();}catch(error){toast(error.message||'操作失败');}finally{window.dispatchEvent(new Event('tidemark-idle'));}}
 const actions={
+  'refresh-analytics':()=>loadAnalytics(true),
   'publish-review':showPublish,
   publish:showPublish,'confirm-publish':startPublish,
   'mode-markdown':()=>switchMode('markdown'),'mode-rich':()=>switchMode('rich'),
@@ -347,7 +382,8 @@ const actions={
 };
 document.addEventListener('click',event=>void handle(async()=>{
   if(!event.target.closest('.format-picker'))$$('.format-picker[open]').forEach(x=>x.removeAttribute('open'));
-  const choice=event.target.closest('[data-choice]');if(choice){const id=choice.dataset.choice,value=choice.dataset.value;if(id==='format-filter'){format=value;pageNumber=1;render();$('#format-filter')?.focus();}else if(id==='component-color'){componentColor=value;const picker=choice.closest('details');picker.querySelector('.choice-label').textContent=choice.children[1].textContent;picker.querySelectorAll('[data-choice]').forEach(x=>{x.setAttribute('aria-pressed',String(x.dataset.value===value));x.querySelector('.format-check').innerHTML=x.dataset.value===value?icon('check'):'';});picker.removeAttribute('open');picker.querySelector('summary').focus();$('#component-code').textContent=componentSnippet();syncComponentPreview();}return;}
+  const choice=event.target.closest('[data-choice]');if(choice){const id=choice.dataset.choice,value=choice.dataset.value;if(id==='analytics-window'){analyticsWindow=value;render();$('#analytics-window')?.focus();}else if(id==='format-filter'){format=value;pageNumber=1;render();$('#format-filter')?.focus();}else if(id==='component-color'){componentColor=value;const picker=choice.closest('details');picker.querySelector('.choice-label').textContent=choice.children[1].textContent;picker.querySelectorAll('[data-choice]').forEach(x=>{x.setAttribute('aria-pressed',String(x.dataset.value===value));x.querySelector('.format-check').innerHTML=x.dataset.value===value?icon('check'):'';});picker.removeAttribute('open');picker.querySelector('summary').focus();$('#component-code').textContent=componentSnippet();syncComponentPreview();}return;}
+  const metric=event.target.closest('[data-analytics-metric]');if(metric){analyticsMetric=metric.dataset.analyticsMetric;render();$(`[data-analytics-metric="${analyticsMetric}"]`)?.focus();return;}
   const fileFormat=event.target.closest('[data-file-format]');if(fileFormat){format=fileFormat.dataset.fileFormat;pageNumber=1;render();$('#format-filter')?.focus();return;}
   const action=event.target.closest('[data-action]');if(action&&actions[action.dataset.action]){await actions[action.dataset.action]();return;}
   const open=event.target.closest('[data-open]');if(open){close();await openDoc(open.dataset.open);return;}
@@ -405,6 +441,7 @@ window.studioNative = Object.freeze({
     try{await chooseNew(kind);close();quickFocus=kind;focusQuickWrite();}catch(error){quickFocus='';throw error;}
   },
   save:()=>{void handle(saveDoc);}, search:showSearch, stopPreview,
+  async overview(){await preserve();go('collections');},
   foreground(){nativeBackground++;},
   async refreshContent(){await refresh();if(!dirty)render();},
   async background(){

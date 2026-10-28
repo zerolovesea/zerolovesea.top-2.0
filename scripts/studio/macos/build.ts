@@ -1,5 +1,7 @@
-import { mkdir, cp, writeFile, rm } from 'node:fs/promises';
+import { mkdir, cp, writeFile, rm, readFile } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
+import { launchHTML } from './launch';
 
 const root = resolve(import.meta.dir, '../../..');
 const app = resolve(root, '.local-studio/Tidemark.app');
@@ -13,6 +15,7 @@ if (!identity) throw new Error('系统小组件需要钥匙串中的 Developer I
 await rm(resolve(contents, 'MacOS/Studio'), { force: true });
 await mkdir(resolve(contents, 'MacOS'), { recursive: true });
 await mkdir(resources, { recursive: true });
+await writeFile(resolve(resources, 'Launch.html'), await launchHTML());
 await mkdir(resolve(extension, 'MacOS'), { recursive: true });
 await mkdir(resolve(extension, 'Resources'), { recursive: true });
 async function run(args: string[]) {
@@ -21,8 +24,38 @@ async function run(args: string[]) {
 }
 await run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-O', '-framework', 'AppKit', '-framework', 'WebKit', '-framework', 'QuartzCore', '-target', `${process.arch === 'arm64' ? 'arm64' : 'x86_64'}-apple-macosx13.0`, resolve(import.meta.dir, 'Studio.swift'), resolve(import.meta.dir, 'LaunchView.swift'), resolve(import.meta.dir, 'QuickWrite.swift'), resolve(import.meta.dir, 'QuickThoughtPanel.swift'), '-o', resolve(contents, 'MacOS/Tidemark')]);
 const widgetBuild = resolve(root, '.local-studio/widget-build');
-await run(['xcodebuild', '-project', resolve(import.meta.dir, 'Widgets.xcodeproj'), '-scheme', 'TidemarkWidgets', '-configuration', 'Release', '-sdk', 'macosx', '-derivedDataPath', resolve(root, '.local-studio/widget-derived'), 'CODE_SIGNING_ALLOWED=NO', `ARCHS=${process.arch === 'arm64' ? 'arm64' : 'x86_64'}`, `CONFIGURATION_BUILD_DIR=${widgetBuild}`, 'build']);
-await cp(resolve(widgetBuild, 'TidemarkWidgets.appex'), resolve(extension, '..'), { recursive: true });
+const xcode = Bun.spawnSync(['xcodebuild', '-version'], { stdout: 'pipe', stderr: 'pipe' });
+if (xcode.exitCode === 0) {
+  await run(['xcodebuild', '-project', resolve(import.meta.dir, 'Widgets.xcodeproj'), '-scheme', 'TidemarkWidgets', '-configuration', 'Release', '-sdk', 'macosx', '-derivedDataPath', resolve(root, '.local-studio/widget-derived'), 'CODE_SIGNING_ALLOWED=NO', `ARCHS=${process.arch === 'arm64' ? 'arm64' : 'x86_64'}`, `CONFIGURATION_BUILD_DIR=${widgetBuild}`, 'build']);
+  await cp(resolve(widgetBuild, 'TidemarkWidgets.appex'), resolve(extension, '..'), { recursive: true });
+} else {
+  // Static WidgetKit configurations need no App Intents metadata or full Xcode.
+  // Match Xcode's macOS extension entry: Foundation bootstraps the extension before SwiftUI's main.
+  await run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-O', '-application-extension', '-Xlinker', '-e', '-Xlinker', '_NSExtensionMain', '-Xlinker', '-u', '-Xlinker', '_main', '-target', `${process.arch === 'arm64' ? 'arm64' : 'x86_64'}-apple-macosx14.0`, '-module-name', 'TidemarkWidgets', resolve(import.meta.dir, 'QuickWriteWidget.swift'), resolve(import.meta.dir, 'QuickWrite.swift'), resolve(import.meta.dir, 'ReadingWidget.swift'), '-o', resolve(extension, 'MacOS/TidemarkWidgets')]);
+  const plist = (await readFile(resolve(import.meta.dir, 'Widget-Info.plist'), 'utf8'))
+    .replaceAll('$(EXECUTABLE_NAME)', 'TidemarkWidgets').replaceAll('$(PRODUCT_BUNDLE_IDENTIFIER)', 'top.zerolovesea.studio.widgets')
+    .replaceAll('$(PRODUCT_NAME)', 'TidemarkWidgets').replaceAll('$(CURRENT_PROJECT_VERSION)', '14').replaceAll('$(MARKETING_VERSION)', '1.5.2')
+    .replace('<key>NSExtension</key>', '<key>LSMinimumSystemVersion</key><string>14.0</string><key>NSExtension</key>');
+  await writeFile(resolve(extension, 'Info.plist'), plist);
+}
+const widgetBinary = resolve(extension, 'MacOS/TidemarkWidgets');
+const loadCommands = Bun.spawnSync(['otool', '-l', widgetBinary]);
+const symbols = Bun.spawnSync(['otool', '-Iv', widgetBinary]);
+const commands = loadCommands.stdout.toString();
+const base = commands.match(/segname __TEXT\s+vmaddr (0x[0-9a-f]+)/)?.[1];
+const entry = commands.match(/cmd LC_MAIN\s+cmdsize \d+\s+entryoff (\d+)/)?.[1];
+const bootstrap = symbols.stdout.toString().match(/^(0x[0-9a-f]+)\s+\d+\s+_NSExtensionMain$/m)?.[1];
+if (loadCommands.exitCode !== 0 || symbols.exitCode !== 0 || !base || !entry || !bootstrap || BigInt(base) + BigInt(entry) !== BigInt(bootstrap)) {
+  throw new Error('WidgetKit 扩展启动入口无效，必须先经过 macOS NSExtensionMain');
+}
+const tokenPath = resolve(root, '.local-studio/widget-token');
+let widgetToken: string;
+try { widgetToken = await readFile(tokenPath, 'utf8'); } catch (error: any) {
+  if (error.code !== 'ENOENT') throw error;
+  widgetToken = randomBytes(32).toString('hex');
+  await writeFile(tokenPath, widgetToken, { mode: 0o600 });
+}
+for (const directory of [resources, resolve(extension, 'Resources')]) await writeFile(resolve(directory, 'WidgetToken.txt'), widgetToken, { mode: 0o600 });
 await cp(resolve(root, 'public/favicon-96x96.png'), resolve(extension, 'Resources/WidgetLogo.png'));
 await cp(process.execPath, resolve(resources, 'bun'));
 await run(['xcrun', 'swift', resolve(import.meta.dir, 'StatusIcon.swift'), resolve(root, 'public/android-icon-192x192.png'), resolve(resources, 'StatusIcon.png')]);
@@ -42,8 +75,8 @@ await writeFile(resolve(contents, 'Info.plist'), `<?xml version="1.0" encoding="
 <key>CFBundleIdentifier</key><string>top.zerolovesea.studio</string>
 <key>CFBundleName</key><string>Tidemark</string>
 <key>CFBundleDisplayName</key><string>Tidemark</string>
-<key>CFBundleVersion</key><string>9</string>
-<key>CFBundleShortVersionString</key><string>1.4.2</string>
+<key>CFBundleVersion</key><string>14</string>
+<key>CFBundleShortVersionString</key><string>1.5.2</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
@@ -63,7 +96,7 @@ for (const locale of ['en', 'zh-Hans']) {
   await writeFile(resolve(directory, 'InfoPlist.strings'), '"CFBundleName" = "Tidemark";\n"CFBundleDisplayName" = "Tidemark";\n');
 }
 const entitlements = resolve(root, '.local-studio/widget-entitlements.plist');
-await writeFile(entitlements, '<?xml version="1.0"?><plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>');
+await writeFile(entitlements, '<?xml version="1.0"?><plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/><key>com.apple.security.network.client</key><true/></dict></plist>');
 await run(['plutil', '-lint', resolve(extension, 'Info.plist')]);
 await run(['plutil', '-lint', resolve(contents, 'Info.plist')]);
 await run(['codesign', '--force', '--sign', identity, '--timestamp=none', resolve(resources, 'bun')]);

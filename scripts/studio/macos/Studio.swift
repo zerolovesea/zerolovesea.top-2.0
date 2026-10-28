@@ -1,5 +1,6 @@
 import AppKit
 import WebKit
+import WidgetKit
 
 @MainActor
 final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate {
@@ -22,6 +23,7 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
     var project: URL!
     var editorReady = false
     var pendingQuickWrite: QuickWriteKind?
+    var pendingOverview = false
     var deliveringQuickWrite = false
     let nativeToken = UUID().uuidString + UUID().uuidString
     var quickThought: QuickThoughtPanel?
@@ -178,6 +180,11 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
+        if urls.contains(where: { $0.absoluteString == "tidemark://overview" }) {
+            pendingOverview = true
+            if window != nil { showWindow(); deliverOverview() }
+            return
+        }
         guard let kind = urls.compactMap({ QuickWriteKind(url: $0) }).last else { return }
         pendingQuickWrite = kind
         if window != nil { showWindow(); deliverQuickWrite() }
@@ -188,6 +195,7 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
     }
 
     func deliverQuickWrite() {
+        deliverOverview()
         guard editorReady, let web, let kind = pendingQuickWrite, !deliveringQuickWrite else { return }
         pendingQuickWrite = nil
         deliveringQuickWrite = true
@@ -200,6 +208,17 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
                 alert.beginSheetModal(for: self.window)
             }
             self.deliverQuickWrite()
+        }
+    }
+
+    func deliverOverview() {
+        guard pendingOverview, editorReady, let web else { return }
+        pendingOverview = false
+        web.callAsyncJavaScript("return await window.studioNative.overview()", arguments: [:], in: nil, in: .page) { result in
+            if case .failure(let error) = result {
+                let alert = NSAlert(); alert.messageText = "暂时无法打开概览"; alert.informativeText = error.localizedDescription
+                alert.beginSheetModal(for: self.window)
+            }
         }
     }
 
@@ -269,6 +288,10 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
         environment["STUDIO_PREVIEW_PORT"] = String(port + 1)
         environment["STUDIO_LLM_API_KEY"] = ""
         environment["STUDIO_NATIVE_TOKEN"] = nativeToken
+        if let url = Bundle.main.url(forResource: "WidgetToken", withExtension: "txt"),
+           let token = try? String(contentsOf: url, encoding: .utf8) {
+            environment["STUDIO_WIDGET_TOKEN"] = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         task.environment = environment
         let pipe = Pipe()
         task.standardOutput = pipe
@@ -282,6 +305,7 @@ final class Studio: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigat
                 self.logs = String((self.logs + text).suffix(12000))
                 if !self.ready && self.logs.contains("local studio →") {
                     self.ready = true
+                    if #available(macOS 14.0, *) { WidgetCenter.shared.reloadAllTimelines() }
                     self.web?.load(URLRequest(url: URL(string: "http://127.0.0.1:\(self.port)/")!))
                 }
             }

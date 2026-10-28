@@ -151,3 +151,17 @@ test("ranking endpoint pages rows by offset and validates input", async () => {
 		server.stop();
 	}
 });
+
+test('a partial first bucket excludes older views and future timestamps', async () => {
+  const now = new Date('2026-10-28T12:35:00Z');
+  const data = await buildDashboardData(async sql => sql.map(s => s.includes('viewed_at AS t') ? [
+    {t:'2026-10-27T12:10:00Z',v:'outside'},
+    {t:'2026-10-27T12:40:00Z',v:'inside'},
+    {t:'2026-10-28T12:00:00Z',v:'inside'},
+    {t:'2026-10-28T13:00:00Z',v:'future'},
+  ] : []), now);
+  const window=data.windows['近24小时'];
+  expect(window.views).toBe(2);expect(window.visitors).toBe(1);
+  expect(window.timeseries.values.reduce((a,b)=>a+b,0)).toBe(window.views);
+  expect(Math.max(...window.timeseries.uniques)).toBe(1);
+});

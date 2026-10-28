@@ -45,7 +45,7 @@ function localHourKey(d: Date): string {
 function wranglerCommand(): { bin: string; prefix: string[] } {
 	const local = fileURLToPath(new URL("../node_modules/.bin/wrangler", import.meta.url));
 	if (existsSync(local)) return { bin: local, prefix: [] };
-	return { bin: "bunx", prefix: ["wrangler"] };
+	return { bin: "bunx", prefix: ["wrangler@4.75.0"] };
 }
 
 function runWrangler(args: string[]): Promise<string> {
@@ -56,6 +56,7 @@ function runWrangler(args: string[]): Promise<string> {
 		const child = spawn(bin, [...prefix, ...args], {
 			cwd: WORKER_DIR,
 			env: process.env,
+			timeout: 45_000,
 		});
 		let out = "";
 		let err = "";
@@ -295,21 +296,23 @@ export async function buildDashboardData(
 	const since180 = new Date(now.getTime() - 180 * DAY_MS).toISOString();
 
 	// Per-visit rows over 180 days; exact counts and uniques derive from them.
-	const [[rows]] = await Promise.all([run([VISIT_ROWS_STMT(since180)])]);
+	// One CLI process per refresh, rather than four parallel Wrangler runtimes.
+	const [rows, ...ranks] = await run([
+		VISIT_ROWS_STMT(since180),
+		...METRICS.flatMap(m => windows.map(w => m.stmt(w.since, now.toISOString()))),
+	]);
 	const visits = parseVisitRows(rows ?? []);
-	const { hourCounts, hourUniques } = indexVisits(visits);
 
-	const perMetric = await Promise.all(
-		METRICS.map(async (m) => ({
-			key: m.key,
-			rows: await run(windows.map((w) => m.stmt(w.since))),
-		})),
-	);
+	const perMetric = METRICS.map((m, i) => ({
+		key: m.key,
+		rows: ranks.slice(i * windows.length, (i + 1) * windows.length),
+	}));
 
 	const out = {} as DashboardData["windows"];
 	windows.forEach((w, i) => {
 		const sinceMs = new Date(w.since).getTime();
-		const inWindow = visits.filter((v) => v.time.getTime() >= sinceMs);
+		const inWindow = visits.filter((v) => v.time.getTime() >= sinceMs && v.time.getTime() < now.getTime());
+		const { hourCounts, hourUniques } = indexVisits(inWindow);
 		const visitors = new Set(inWindow.map((v) => v.vid).filter(Boolean)).size;
 		const series = buildSeries(hourCounts, hourUniques, new Date(w.since), now, GRANULARITY[w.label] ?? "day");
 		const entry = {

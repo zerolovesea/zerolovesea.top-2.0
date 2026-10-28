@@ -1,0 +1,24 @@
+{
+  "segment_count": 5,
+  "cubic_segments": 3,
+  "line_segments": 2,
+  "closed": false,
+  "budget": null,
+  "over_budget": false,
+  "median_segment_length": 42.26,
+  "short_segment_warnings": [],
+  "join_angle_threshold_degrees": 8.0,
+  "join_angle_warnings": [
+    {
+      "join_after_segment": 2,
+      "angle_degrees": 126.746
+    },
+    {
+      "join_after_segment": 3,
+      "angle_degrees": 131.383
+    }
+  ],
+  "input_svg": "design/logo-motion/logo.svg",
+  "selected_path_index": 3,
+  "path_count": 7
+}

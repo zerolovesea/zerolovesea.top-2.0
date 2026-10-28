@@ -57,7 +57,6 @@ struct QuickWriteWidgetView: View {
     }
 }
 
-@main
 struct QuickWriteWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "top.zerolovesea.studio.quick-write", provider: QuickWriteProvider()) { _ in

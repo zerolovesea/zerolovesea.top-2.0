@@ -14,5 +14,5 @@
 			"@data/*": ["./src/data/*"]
 		}
 	},
-	"exclude": ["scripts/**"]
+	"exclude": ["scripts/**", "design/logo-motion/serve.ts"]
 }
