@@ -34,7 +34,7 @@ if (xcode.exitCode === 0) {
   await run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-O', '-application-extension', '-Xlinker', '-e', '-Xlinker', '_NSExtensionMain', '-Xlinker', '-u', '-Xlinker', '_main', '-target', `${process.arch === 'arm64' ? 'arm64' : 'x86_64'}-apple-macosx14.0`, '-module-name', 'TidemarkWidgets', resolve(import.meta.dir, 'QuickWriteWidget.swift'), resolve(import.meta.dir, 'QuickWrite.swift'), resolve(import.meta.dir, 'ReadingWidget.swift'), '-o', resolve(extension, 'MacOS/TidemarkWidgets')]);
   const plist = (await readFile(resolve(import.meta.dir, 'Widget-Info.plist'), 'utf8'))
     .replaceAll('$(EXECUTABLE_NAME)', 'TidemarkWidgets').replaceAll('$(PRODUCT_BUNDLE_IDENTIFIER)', 'top.zerolovesea.studio.widgets')
-    .replaceAll('$(PRODUCT_NAME)', 'TidemarkWidgets').replaceAll('$(CURRENT_PROJECT_VERSION)', '14').replaceAll('$(MARKETING_VERSION)', '1.5.2')
+    .replaceAll('$(PRODUCT_NAME)', 'TidemarkWidgets').replaceAll('$(CURRENT_PROJECT_VERSION)', '15').replaceAll('$(MARKETING_VERSION)', '1.5.3')
     .replace('<key>NSExtension</key>', '<key>LSMinimumSystemVersion</key><string>14.0</string><key>NSExtension</key>');
   await writeFile(resolve(extension, 'Info.plist'), plist);
 }
@@ -56,9 +56,10 @@ try { widgetToken = await readFile(tokenPath, 'utf8'); } catch (error: any) {
   await writeFile(tokenPath, widgetToken, { mode: 0o600 });
 }
 for (const directory of [resources, resolve(extension, 'Resources')]) await writeFile(resolve(directory, 'WidgetToken.txt'), widgetToken, { mode: 0o600 });
-await cp(resolve(root, 'public/favicon-96x96.png'), resolve(extension, 'Resources/WidgetLogo.png'));
 await cp(process.execPath, resolve(resources, 'bun'));
 await run(['xcrun', 'swift', resolve(import.meta.dir, 'StatusIcon.swift'), resolve(root, 'public/android-icon-192x192.png'), resolve(resources, 'StatusIcon.png')]);
+// Widget tinting uses alpha; the opaque favicon becomes a solid square.
+await cp(resolve(resources, 'StatusIcon.png'), resolve(extension, 'Resources/WidgetLogo.png'));
 // shortcut: this local app is bound to the repository path; rebuild after moving the repository.
 await writeFile(resolve(resources, 'project.txt'), root);
 const iconset = resolve(root, '.local-studio/studio.iconset');
@@ -75,8 +76,8 @@ await writeFile(resolve(contents, 'Info.plist'), `<?xml version="1.0" encoding="
 <key>CFBundleIdentifier</key><string>top.zerolovesea.studio</string>
 <key>CFBundleName</key><string>Tidemark</string>
 <key>CFBundleDisplayName</key><string>Tidemark</string>
-<key>CFBundleVersion</key><string>14</string>
-<key>CFBundleShortVersionString</key><string>1.5.2</string>
+<key>CFBundleVersion</key><string>15</string>
+<key>CFBundleShortVersionString</key><string>1.5.3</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>

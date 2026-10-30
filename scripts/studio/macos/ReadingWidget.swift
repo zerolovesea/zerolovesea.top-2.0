@@ -126,7 +126,7 @@ struct ReadingStatsView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 if let url = Bundle.main.url(forResource: "WidgetLogo", withExtension: "png"), let image = NSImage(contentsOf: url) {
-                    Image(nsImage: image).resizable().scaledToFit().frame(width: 16, height: 16)
+                    Image(nsImage: image).renderingMode(.template).resizable().scaledToFit().frame(width: 16, height: 16)
                 }
                 Text("阅读概览").font(.system(size: 12, weight: .medium))
                 Spacer(minLength: 0)

@@ -18,7 +18,7 @@ struct QuickWriteWidgetView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 if let url = Bundle.main.url(forResource: "WidgetLogo", withExtension: "png"), let image = NSImage(contentsOf: url) {
-                    Image(nsImage: image).resizable().scaledToFit().frame(width: 20, height: 20)
+                    Image(nsImage: image).renderingMode(.template).resizable().scaledToFit().frame(width: 20, height: 20)
                 }
                 Text("Tidemark").font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 0)
