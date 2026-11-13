@@ -83,3 +83,9 @@ bunx wrangler deploy
 ```bash
 bun test workers/view-counter/view-counter.test.mjs
 ```
+
+### 访问明细字段
+
+`ip_prefix` 仅保存 IPv4 /24 或 IPv6 /48 网段；`device` 只保存从浏览器标识推断的手机、平板、电脑类别。不会保存完整 IP 或浏览器标识。历史记录这两列为空。
+
+现有生产数据库先在此目录执行 `bunx wrangler d1 migrations apply zerolovesea-view-counter --remote`，再用 `bunx wrangler deploy` 发布此计数 Worker。新建数据库若直接用当前 `schema.sql` 初始化，已包含这些列，无需再运行这条迁移。

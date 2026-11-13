@@ -12,7 +12,7 @@ test('widget capability exposes only aggregate statistics and cannot access edit
   try {
     expect((await request('widget-analytics','GET','')).status).toBe(403);
     expect((await request('widget-analytics','POST')).status).toBe(405);
-    for(const path of ['init','document?id=writing/test.md','analytics','settings'])expect((await request(path)).status).toBe(403);
+    for(const path of ['init','document?id=writing/test.md','analytics','analytics/visits?window=今天','settings'])expect((await request(path)).status).toBe(403);
     const response=await request('widget-analytics');expect(response.status).toBe(200);
     const data=await response.json();expect(Object.keys(data.windows)).toHaveLength(6);
     expect(data.windows['近7天'].views).toBe(1);expect(data.windows['近7天'].visitors).toBe(1);

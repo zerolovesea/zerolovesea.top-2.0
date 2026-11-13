@@ -57,9 +57,9 @@ test('overview renders truthful loading/empty/error states, safe rankings and PV
   const source=await Bun.file(resolve(import.meta.dir,'app.js')).text();
   const functions=source.slice(source.indexOf('async function loadAnalytics('),source.indexOf('function renderList('));
   const data=await (await import('../analytics-server')).buildDashboardData(fakeRun);
-  const state:any={analyticsData:null,analyticsLoading:true,analyticsError:'',analyticsWindow:'近7天',analyticsMetric:'views',documents:[],
+  const state:any={analyticsData:null,analyticsLoading:true,analyticsError:'',analyticsWindow:'近7天',analyticsMetric:'views',visitResult:null,visitPage:1,documents:[],
     head:(title:string)=>title,singlePicker:()=>'',icon:()=>'',isEnglish:(id:string)=>id.startsWith('writing-en/'),stemOf:(id:string)=>id.split('/')[1].replace(/\.mdx?$/,''),Intl,Date};
-  runInNewContext(source.split('\n').find(s=>s.startsWith('const escape ='))+'\n'+functions+'\nthis.home=renderHome;this.trend=renderTrend;',state);
+  runInNewContext(source.split('\n').find(s=>s.startsWith('const escape ='))+'\n'+functions+'\nthis.home=renderHome;this.trend=renderTrend;this.visitTime=formatVisitTime;',state);
   expect(state.home()).toContain('正在读取');
   state.analyticsLoading=false;state.analyticsError='offline';expect(state.home()).toContain('offline');
   state.analyticsData=data;state.analyticsError='';
@@ -68,8 +68,38 @@ test('overview renders truthful loading/empty/error states, safe rankings and PV
   w.posts.push({k:'多端同步与ui设计言录',n:1,u:1});
   const html=state.home();expect(html).toContain('多端同步与 UI 设计：言录');expect(html).toContain('独立访客');expect(html).toContain('国家 / 地区');expect(html).toContain('中国');expect(html).toContain('访客语言');expect(html).toContain('&lt;img');expect(html).not.toContain('<img');
   const series={labels:['10-28 08:00','10-28 09:00'],values:[8,4],uniques:[3,2]};
-  expect(state.trend(series)).toContain('08:00 · 8');state.analyticsMetric='visitors';expect(state.trend(series)).toContain('08:00 · 3');
+  expect(state.trend(series)).toContain('PV 8　·　UV 3');state.analyticsMetric='visitors';expect(state.trend(series)).toContain('PV 8　·　UV 3');
+  state.visitResult={rows:[{time:'2026-10-28T08:00:00Z',slug:'多端同步与ui设计言录',device:'mobile',ipPrefix:'203.0.113.0/24',city:'<script>'}],more:true};
+  expect(state.home()).toContain('203.0.113.0/24');expect(state.home()).toContain('手机');expect(state.home()).toContain('&lt;script&gt;');expect(state.home()).toContain('下一页');
+  const now = new Date('2026-11-12T16:05:00Z');
+  expect(state.visitTime('2026-11-12T16:02:30Z', now)).toContain('今天 00:02:30');
+  expect(state.visitTime('2026-11-12T15:59:00Z', now)).toContain('昨天 23:59:00');
+  expect(state.visitTime('2026-11-11T15:59:00Z', now)).toContain('2天前 23:59:00');
+  expect(state.visitTime('2026-10-29T05:20:00Z', now)).toContain('15天前 13:20:00');
+  expect(state.visitTime(null, now)).toBe('—');
   expect(state.trend({labels:['zero'],values:[0],uniques:[0]})).not.toMatch(/NaN|Infinity/);
   state.analyticsError='更新失败';expect(state.home()).toContain('上次成功');
   w.posts=[];expect(state.home()).toContain('此时间段暂无数据');
+});
+
+test('visit detail pagination works with historical rows and never returns visitor IDs', async () => {
+  const { readVisitDetails } = await import('./analytics');
+  const { Database } = await import('bun:sqlite');
+  const db = new Database(':memory:');
+  try {
+    db.run('CREATE TABLE visits(id INTEGER PRIMARY KEY, viewed_at TEXT, slug TEXT, visitor_id TEXT)');
+    for (let i = 1; i <= 21; i++) db.run('INSERT INTO visits VALUES (?, ?, ?, ?)', [i, '2026-10-28T09:00:00.000Z', 'post-'+i, 'private-uuid']);
+    const query = async (sql: string[]) => sql.map(s => db.query(s).all() as Record<string, unknown>[]);
+    const at = '2026-10-28T10:00:00.000Z';
+    const first = await readVisitDetails('近7天', 1, query, at);
+    expect(first.rows).toHaveLength(20);
+    expect(first.more).toBe(true);
+    expect(first.rows[0]).toMatchObject({ slug: 'post-21', device: null, ipPrefix: null });
+    expect(JSON.stringify(first)).not.toContain('private-uuid');
+    const second = await readVisitDetails('近7天', 2, query, at);
+    expect(second.rows.map(r => r.slug)).toEqual(['post-1']);
+    expect(second.more).toBe(false);
+    await expect(readVisitDetails('wrong', 1, query, at)).rejects.toThrow('无效');
+    await expect(readVisitDetails('近7天', -1, query, at)).rejects.toThrow('无效');
+  } finally { db.close(); }
 });

@@ -33,6 +33,8 @@ function makeDB(initial = {}) {
 									city: args[3],
 									language: args[4],
 									visitor_id: args[5],
+									ip_prefix: args[6],
+									device: args[7],
 								});
 							}
 							return { meta: {} };
@@ -177,4 +179,19 @@ test("GET returns 0 for an unknown slug", async () => {
 		env(),
 	);
 	expect((await res.json()).count).toBe(0);
+});
+
+
+test("logs only a coarse IP prefix and device category", async () => {
+	for (const [ip, prefix, ua, device] of [
+		["203.0.113.79", "203.0.113.0/24", "Mozilla/5.0 (iPhone; Mobile)", "mobile"],
+		["2001:db8::1234", "2001:db8:0::/48", "Mozilla/5.0 (iPad)", "tablet"],
+		["invalid", null, "Mozilla/5.0 (Macintosh)", "desktop"],
+	]) {
+		const e = env();
+		const request = postRequest("post", { ua });
+		request.headers.set("cf-connecting-ip", ip);
+		await worker.fetch(request, e);
+		expect(e.db.visits[0]).toMatchObject({ ip_prefix: prefix, device });
+	}
 });

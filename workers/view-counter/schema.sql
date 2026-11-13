@@ -10,7 +10,9 @@ CREATE TABLE IF NOT EXISTS visits (
 	country TEXT,
 	city TEXT,
 	language TEXT,
-	visitor_id TEXT
+	visitor_id TEXT,
+	ip_prefix TEXT,
+	device TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_visits_slug ON visits (slug);

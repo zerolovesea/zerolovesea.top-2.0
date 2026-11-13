@@ -6,7 +6,7 @@ import { Preview } from './studio/preview';
 import { Publisher } from './studio/publish';
 import { prepareRich } from './studio/rich';
 import { buildClient } from './studio/client';
-import { analyticsReader } from './studio/analytics';
+import { analyticsReader, readVisitDetails } from './studio/analytics';
 import { chatImages, discuss } from './studio/chat';
 import { defaultConfig, messagesURL, callModel, translateDocument, type ModelConfig } from './studio/translate';
 
@@ -55,6 +55,7 @@ export async function createStudio(root: string, options: { port?: number; previ
         const route = url.pathname;
         if (request.method === 'GET') {
           if (route === '/api/analytics') return json(await analytics(url.searchParams.get('refresh') === '1'));
+          if (route === '/api/analytics/visits') return json(await readVisitDetails(url.searchParams.get('window'), Number(url.searchParams.get('page') ?? '1'), options.analyticsRun, url.searchParams.get('at')));
           if (route === '/api/publish-plan') return json(await publisher.plan());
           if (route === '/api/publish-status') return json(publisher.state);
           if (route === '/api/init') return json({ documents: await store.list(), drafts: await store.drafts(), config: modelStatus(), components: componentNames });

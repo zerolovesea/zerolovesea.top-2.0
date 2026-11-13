@@ -1,0 +1,2 @@
+ALTER TABLE visits ADD COLUMN ip_prefix TEXT;
+ALTER TABLE visits ADD COLUMN device TEXT;

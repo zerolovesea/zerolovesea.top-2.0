@@ -59,7 +59,29 @@ async function increment(env, slug) {
 	return results[0]?.count ?? 0;
 }
 
-// Best-effort raw visit log: timestamp, country/city (Cloudflare IP
+function ipPrefix(ip) {
+	const parts = ip.split(".");
+	if (parts.length === 4 && parts.every(n => /^\d{1,3}$/.test(n) && Number(n) <= 255)) {
+		return parts.slice(0, 3).join(".") + ".0/24";
+	}
+	if (!ip.includes(":") || !/^[0-9a-f:.]+$/i.test(ip)) return null;
+	try {
+		const [head, tail] = new URL(`http://[${ip}]/`).hostname.slice(1, -1).split("::");
+		const left = head ? head.split(":") : [];
+		const right = tail ? tail.split(":") : [];
+		const groups = tail === undefined ? left : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
+		return groups.slice(0, 3).join(":") + "::/48";
+	} catch { return null; }
+}
+
+function deviceType(ua) {
+	if (/iPad|Tablet|Android(?!.*Mobile)/i.test(ua)) return "tablet";
+	if (/Mobile|iPhone|iPod|Android/i.test(ua)) return "mobile";
+	if (/Windows NT|Macintosh|X11|CrOS|Linux/i.test(ua)) return "desktop";
+	return null;
+}
+
+// Best-effort visit log: timestamp, country/city (Cloudflare IP
 // geolocation), the reader's browser language (Accept-Language header) and an
 // anonymous visitor id (random UUID from the client, used for unique-visitor
 // counts). Never stores the raw IP. Failure here must never break counting.
@@ -70,18 +92,21 @@ async function logVisit(env, request, slug, visitorId) {
 			.split(",")[0]
 			?.trim()
 			.slice(0, 32) || null;
-	await env.DB.prepare(
-		"INSERT INTO visits (slug, viewed_at, country, city, language, visitor_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-	)
-		.bind(
-			slug,
-			new Date().toISOString(),
-			cf.country ?? null,
-			cf.city ?? null,
-			language,
-			visitorId,
-		)
-		.run();
+	const fields = [slug, new Date().toISOString(), cf.country ?? null, cf.city ?? null, language, visitorId];
+	try {
+		await env.DB.prepare(
+			"INSERT INTO visits (slug, viewed_at, country, city, language, visitor_id, ip_prefix, device) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+		).bind(...fields,
+			ipPrefix(request.headers.get("cf-connecting-ipv6") || request.headers.get("cf-connecting-ip") || ""),
+			deviceType(request.headers.get("user-agent") || ""),
+		).run();
+	} catch (error) {
+		// Keep recording visits if this Worker is deployed before its schema update.
+		if (!/no column named (ip_prefix|device)\b/i.test(String(error))) throw error;
+		await env.DB.prepare(
+			"INSERT INTO visits (slug, viewed_at, country, city, language, visitor_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+		).bind(...fields).run();
+	}
 }
 
 function json(data, status = 200) {

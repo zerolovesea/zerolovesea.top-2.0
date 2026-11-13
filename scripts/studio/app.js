@@ -43,6 +43,7 @@ let editorMode='markdown',richEditor=null,richModule=null,richOwner=null,richBod
 let publishState={running:false},publishPlan=null,publishTimer;
 let translationTimer=null,translationSaving=0,translationSave=Promise.resolve();
 let analyticsData=null,analyticsLoading=false,analyticsError='',analyticsWindow='近7天',analyticsMetric='views';
+let visitPage=1,visitResult=null,visitRequest=0;
 const chats=new Map();
 const componentLabels={Highlight:'高亮标记',Sidenote:'旁注',RevealQuote:'展开引用',DecisionToggle:'决策切换',FlipCards:'翻转卡片',EnergyMeter:'能量指示',DecisionForm:'决策表单',AgentSimulation:'智能体模拟',CommitCompare:'提交对比'};
 function singlePicker(id,label,value,options){return `<details class="format-picker"><summary id="${id}" aria-label="${label}">${icon('filter')}<span class="choice-label">${escape(options.find(x=>x[0]===value)?.[1]||value)}</span>${icon('chevron')}</summary><div class="format-options" role="group" aria-label="${label}">${options.map(([key,text,note=''])=>`<button type="button" data-choice="${id}" data-value="${key}" aria-pressed="${key===value}"><span class="format-check">${key===value?icon('check'):''}</span><span>${text}</span><small>${note}</small></button>`).join('')}</div></details>`;}
@@ -119,12 +120,49 @@ async function loadAnalytics(force=false){
   if(analyticsLoading)return;analyticsLoading=true;analyticsError='';if(page==='collections')render();
   try{analyticsData=await api('analytics'+(force?'?refresh=1':''));analyticsError=analyticsData.error||'';}
   catch(error){analyticsError=error.message;}
-  finally{analyticsLoading=false;if(page==='collections')render();}
+  finally{analyticsLoading=false;if(page==='collections'){render();if(analyticsData)loadVisits(1);}}
 }
 function analyticsName(key,value){
   if(!value)return '未知';
   if(key==='country'||key==='language')try{return new Intl.DisplayNames(['zh-CN'],{type:key==='country'?'region':'language'}).of(String(value))||value;}catch{}
   return String(value);
+}
+const visitDate = new Intl.DateTimeFormat('sv-SE', { timeZone:'Asia/Shanghai', year:'numeric', month:'2-digit', day:'2-digit' });
+const visitTime = new Intl.DateTimeFormat('zh-CN', { timeZone:'Asia/Shanghai', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' });
+function formatVisitTime(value, now){
+  const date = new Date(value ?? NaN);
+  if(!Number.isFinite(date.getTime()))return '—';
+  const calendarDate = visitDate.format(date);
+  const daysAgo = (Date.parse(visitDate.format(now)) - Date.parse(calendarDate)) / 86_400_000;
+  const day = daysAgo === 0 ? '今天' : daysAgo === 1 ? '昨天' : daysAgo > 1 ? `${daysAgo}天前` : calendarDate;
+  const time = visitTime.format(date);
+  return `<time datetime="${date.toISOString()}" title="${calendarDate} ${time}">${day} ${time}</time>`;
+}
+function renderVisitDetails(){
+  const result=visitResult;
+  if(!result)return '<p class="analytics-empty" role="status">正在读取访问明细…</p>';
+  if(result.error)return `<p class="analytics-empty" role="status">${escape(result.error)} <button class="btn" data-action="retry-visits">重试</button></p>`;
+  const now=new Date();
+  const rows=result.rows.map(r=>{
+    const slug=String(r.slug??'');
+    const article=documents.find(d=>d.slug===slug || '/'+d.slug===slug)?.meta?.title||slug||'—';
+    const location=[r.country&&analyticsName('country',r.country),r.city].filter(Boolean).join(' · ');
+    const cells=[location,r.ipPrefix,({mobile:'手机',tablet:'平板',desktop:'电脑'})[r.device],r.language&&analyticsName('language',r.language),article];
+    return `<tr><td>${formatVisitTime(r.time,now)}</td>${cells.map(x=>`<td>${escape(x||'—')}</td>`).join('')}</tr>`;
+  }).join('');
+  return (rows?`<div class="visit-scroll"><table class="visit-table"><thead><tr>${['时间','地点','IP 网段','设备','语言','访问的文章'].map(x=>`<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`:'<p class="analytics-empty">此时间段暂无访问记录</p>')+
+    (visitPage>1||result.more?`<div class="visit-pagination"><button class="btn" data-action="previous-visits" ${visitPage===1?'disabled':''}>上一页</button><span>第 ${visitPage} 页</span><button class="btn" data-action="next-visits" ${!result.more?'disabled':''}>下一页</button></div>`:'');
+}
+async function loadVisits(number){
+  visitPage=number;visitResult=null;const request=++visitRequest;
+  const draw=()=>{const target=$('#visit-details');if(target)target.innerHTML=renderVisitDetails();};
+  draw();
+  try{
+    const query=new URLSearchParams({window:analyticsWindow,page:String(number),at:analyticsData?.generatedAt||''});
+    const result=await api('analytics/visits?'+query);
+    if(request===visitRequest)visitResult=result;
+  }catch(error){if(request===visitRequest)visitResult={error:error.message};}
+  if(request===visitRequest)draw();
 }
 function renderTrend(series){
   const values=analyticsMetric==='views'?series.values:series.uniques;
@@ -132,7 +170,12 @@ function renderTrend(series){
   const max=Math.max(2,Math.ceil(Math.max(...values)/2)*2),x=i=>48+i*812/Math.max(1,values.length-1),y=v=>210-v/max*178;
   const points=values.map((v,i)=>`${x(i)},${y(v)}`).join(' ');
   const ticks=[...new Set([0,Math.floor((values.length-1)/2),values.length-1])];
-  return `<svg class="analytics-chart" viewBox="0 0 900 260" role="img" aria-label="${analyticsMetric==='views'?'阅读量 PV':'访客 UV'}趋势，时间按本机时区"><title>${analyticsMetric==='views'?'阅读量 PV':'访客 UV'}趋势</title>${[0,.5,1].map(r=>`<line x1="48" y1="${y(max*r)}" x2="860" y2="${y(max*r)}" class="chart-grid"/><text x="36" y="${y(max*r)+4}" text-anchor="end">${Math.round(max*r)}</text>`).join('')}<polyline points="${points}" class="chart-line"/>${values.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="3" class="chart-point" tabindex="0" aria-label="${escape(series.labels[i])}：${v}"><title>${escape(series.labels[i])} · ${v}</title></circle>`).join('')}${ticks.map(i=>`<text x="${x(i)}" y="244" text-anchor="${i===0?'start':i===values.length-1?'end':'middle'}">${escape(series.labels[i])}</text>`).join('')}</svg>`;
+  return `<svg class="analytics-chart" viewBox="0 0 900 260" role="group" aria-label="${analyticsMetric==='views'?'阅读量 PV':'访客 UV'}趋势，时间按本机时区"><title>${analyticsMetric==='views'?'阅读量 PV':'访客 UV'}趋势</title>${[0,.5,1].map(r=>`<line x1="48" y1="${y(max*r)}" x2="860" y2="${y(max*r)}" class="chart-grid"/><text x="36" y="${y(max*r)+4}" text-anchor="end">${Math.round(max*r)}</text>`).join('')}<polyline points="${points}" class="chart-line"/>${values.map((v,i)=>{
+    const px=x(i),py=y(v),width=Math.min(96,812/Math.max(1,values.length-1)),tx=Math.min(714,Math.max(48,px-72)),ty=py<80?py+10:py-62;
+    const span=analyticsWindow==='近7天'?'6 小时':series.labels[i].includes(':')?'1 小时':'当天';
+    const label=series.labels[i]+' · '+span,pv=series.values[i],uv=series.uniques[i];
+    return `<g class="chart-bucket" tabindex="0" aria-label="${escape(label)}，阅读量 ${pv}，独立访客 ${uv}"><rect class="chart-hit" x="${px-width/2}" y="28" width="${width}" height="187"/><circle cx="${px}" cy="${py}" r="3" class="chart-point"/><g class="chart-tooltip" transform="translate(${tx} ${ty})" aria-hidden="true"><rect width="146" height="48" rx="4"/><text x="10" y="17">${escape(label)}</text><text x="10" y="35">PV ${pv}　·　UV ${uv}</text></g></g>`;
+  }).join('')}${ticks.map(i=>`<text x="${x(i)}" y="244" text-anchor="${i===0?'start':i===values.length-1?'end':'middle'}">${escape(series.labels[i])}</text>`).join('')}</svg>`;
 }
 function renderRanking(rows,key,title,total){
   const max=Math.max(1,...rows.map(r=>r.n));
@@ -149,7 +192,7 @@ function renderHome(){
   const header=head('阅读概览','',controls);
   const notice=analyticsError?`<div class="analytics-notice" role="status">${escape(analyticsError)}${analyticsData?' 当前显示上次成功获取的数据。':''}</div>`:'';
   if(!w)return header+notice+`<div class="analytics-empty" role="status">${analyticsLoading?'正在读取线上阅读数据…':'暂无可用统计，点击刷新数据重试。'}</div>`;
-  return header+notice+`<div class="analytics-metrics">${[['阅读量','PV',w.views],['独立访客','UV',w.visitors],['访问次数','sessions',w.visits]].map(([label,unit,n])=>`<div><span>${label} <small>${unit}</small></span><strong>${n.toLocaleString('zh-CN')}</strong></div>`).join('')}</div><section class="analytics-trend"><div class="analytics-section-head"><h2>阅读趋势</h2><div class="segmented"><button data-analytics-metric="views" class="${analyticsMetric==='views'?'active':''}" aria-pressed="${analyticsMetric==='views'}">阅读量 PV</button><button data-analytics-metric="visitors" class="${analyticsMetric==='visitors'?'active':''}" aria-pressed="${analyticsMetric==='visitors'}">访客 UV</button></div></div>${renderTrend(w.timeseries)}</section><div class="analytics-rankings">${renderRanking(w.posts,'posts','热门文章',w.views)}${renderRanking(w.country,'country','国家 / 地区',w.views)}${renderRanking(w.city,'city','城市',w.views)}${renderRanking(w.language,'language','访客语言',w.views)}</div><div class="analytics-foot"><span>更新于 ${escape(new Date(analyticsData.generatedAt).toLocaleString('zh-CN'))} · 本机时区 · 15 分钟缓存</span></div><div class="analytics-shortcuts"><a href="#writing">博文 ${icon('arrow')}</a><a href="#thoughts">随想 ${icon('arrow')}</a><a href="#drafts">本地草稿 ${icon('arrow')}</a></div>`;
+  return header+notice+`<div class="analytics-metrics">${[['阅读量','PV',w.views],['独立访客','UV',w.visitors],['访问次数','sessions',w.visits]].map(([label,unit,n])=>`<div><span>${label} <small>${unit}</small></span><strong>${n.toLocaleString('zh-CN')}</strong></div>`).join('')}</div><section class="analytics-trend"><div class="analytics-section-head"><h2>阅读趋势</h2><div class="segmented"><button data-analytics-metric="views" class="${analyticsMetric==='views'?'active':''}" aria-pressed="${analyticsMetric==='views'}">阅读量 PV</button><button data-analytics-metric="visitors" class="${analyticsMetric==='visitors'?'active':''}" aria-pressed="${analyticsMetric==='visitors'}">访客 UV</button></div></div>${renderTrend(w.timeseries)}</section><div class="analytics-rankings">${renderRanking(w.posts,'posts','热门文章',w.views)}${renderRanking(w.country,'country','国家 / 地区',w.views)}${renderRanking(w.city,'city','城市',w.views)}${renderRanking(w.language,'language','访客语言',w.views)}</div><section class="visit-section" aria-labelledby="visit-title"><div class="analytics-section-head"><h2 id="visit-title">访问明细</h2><span class="muted">${escape(analyticsWindow)}</span></div><div id="visit-details">${renderVisitDetails()}</div></section><div class="analytics-foot"><span>更新于 ${escape(new Date(analyticsData.generatedAt).toLocaleString('zh-CN'))} · 本机时区 · 15 分钟缓存</span></div><div class="analytics-shortcuts"><a href="#writing">博文 ${icon('arrow')}</a><a href="#thoughts">随想 ${icon('arrow')}</a><a href="#drafts">本地草稿 ${icon('arrow')}</a></div>`;
 }
 function renderList(){
   const kind=page==='thoughts'?'thought':'writing';const collection=kind+(language==='en'?'-en':'');
@@ -349,6 +392,7 @@ function pollPublish(){
 async function handle(work){try{await work();}catch(error){toast(error.message||'操作失败');}finally{window.dispatchEvent(new Event('tidemark-idle'));}}
 const actions={
   'refresh-analytics':()=>loadAnalytics(true),
+  'previous-visits':()=>loadVisits(visitPage-1),'next-visits':()=>loadVisits(visitPage+1),'retry-visits':()=>loadVisits(visitPage),
   'publish-review':showPublish,
   publish:showPublish,'confirm-publish':startPublish,
   'mode-markdown':()=>switchMode('markdown'),'mode-rich':()=>switchMode('rich'),
@@ -382,7 +426,7 @@ const actions={
 };
 document.addEventListener('click',event=>void handle(async()=>{
   if(!event.target.closest('.format-picker'))$$('.format-picker[open]').forEach(x=>x.removeAttribute('open'));
-  const choice=event.target.closest('[data-choice]');if(choice){const id=choice.dataset.choice,value=choice.dataset.value;if(id==='analytics-window'){analyticsWindow=value;render();$('#analytics-window')?.focus();}else if(id==='format-filter'){format=value;pageNumber=1;render();$('#format-filter')?.focus();}else if(id==='component-color'){componentColor=value;const picker=choice.closest('details');picker.querySelector('.choice-label').textContent=choice.children[1].textContent;picker.querySelectorAll('[data-choice]').forEach(x=>{x.setAttribute('aria-pressed',String(x.dataset.value===value));x.querySelector('.format-check').innerHTML=x.dataset.value===value?icon('check'):'';});picker.removeAttribute('open');picker.querySelector('summary').focus();$('#component-code').textContent=componentSnippet();syncComponentPreview();}return;}
+  const choice=event.target.closest('[data-choice]');if(choice){const id=choice.dataset.choice,value=choice.dataset.value;if(id==='analytics-window'){analyticsWindow=value;if(analyticsData)loadVisits(1);render();$('#analytics-window')?.focus();}else if(id==='format-filter'){format=value;pageNumber=1;render();$('#format-filter')?.focus();}else if(id==='component-color'){componentColor=value;const picker=choice.closest('details');picker.querySelector('.choice-label').textContent=choice.children[1].textContent;picker.querySelectorAll('[data-choice]').forEach(x=>{x.setAttribute('aria-pressed',String(x.dataset.value===value));x.querySelector('.format-check').innerHTML=x.dataset.value===value?icon('check'):'';});picker.removeAttribute('open');picker.querySelector('summary').focus();$('#component-code').textContent=componentSnippet();syncComponentPreview();}return;}
   const metric=event.target.closest('[data-analytics-metric]');if(metric){analyticsMetric=metric.dataset.analyticsMetric;render();$(`[data-analytics-metric="${analyticsMetric}"]`)?.focus();return;}
   const fileFormat=event.target.closest('[data-file-format]');if(fileFormat){format=fileFormat.dataset.fileFormat;pageNumber=1;render();$('#format-filter')?.focus();return;}
   const action=event.target.closest('[data-action]');if(action&&actions[action.dataset.action]){await actions[action.dataset.action]();return;}

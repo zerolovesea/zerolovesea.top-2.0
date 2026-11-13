@@ -134,6 +134,7 @@ textarea.translation-source{min-height:380px;width:100%;border:1px solid var(--l
 .chart-point{fill:var(--surface);stroke:var(--ink);stroke-width:1.5;vector-effect:non-scaling-stroke}
 .chart-point:hover,.chart-point:focus{r:5;fill:var(--ink);outline:2px solid var(--strong-line);outline-offset:4px}
 .analytics-ranking summary{font-size:12px;color:var(--muted);cursor:pointer;width:fit-content;padding:6px 0}
+.analytics-ranking details[open]>summary{display:none}
 .analytics-rankings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:38px}
 .analytics-ranking{padding:26px 0;border-bottom:1px solid var(--line);min-width:0}
 .analytics-ranking ol{list-style:none;padding:0;margin:0}
@@ -155,3 +156,18 @@ textarea.translation-source{min-height:380px;width:100%;border:1px solid var(--l
 .analytics-shortcuts svg{width:14px;height:14px}
 @media(max-width:900px){.analytics-metrics>div{padding-right:12px}.analytics-metrics>div+div{padding-left:16px}.analytics-metrics strong{font-size:30px}.analytics-rankings{column-gap:24px}}
 @media(max-width:600px){.analytics-metrics{grid-template-columns:1fr}.analytics-metrics>div{display:grid;grid-template-columns:1fr auto;align-items:center;padding:16px 0}.analytics-metrics>div+div{padding-left:0;border-left:0;border-top:1px solid var(--line)}.analytics-rankings{grid-template-columns:1fr}.analytics-section-head{gap:8px}.analytics-section-head .segmented button{padding:6px 8px}.analytics-chart{min-height:170px}.analytics-shortcuts{gap:20px}}
+.chart-hit{fill:transparent;stroke:none}
+.chart-bucket:focus{outline:none}
+.chart-bucket:hover .chart-point,.chart-bucket:focus-visible .chart-point{r:5;fill:var(--ink)}
+.chart-tooltip{display:none;pointer-events:none}
+.chart-bucket:hover .chart-tooltip,.chart-bucket:focus-visible .chart-tooltip{display:block}
+.chart-tooltip rect{fill:var(--surface);stroke:var(--strong-line)}
+.analytics-chart .chart-tooltip text{fill:var(--ink);font-size:13px}
+.visit-section{margin-top:24px;padding-top:24px;border-top:1px solid var(--line)}
+.visit-scroll{overflow-x:auto}
+.visit-table{width:100%;border-collapse:collapse;font-size:12px;text-align:left}
+.visit-table th,.visit-table td{padding:10px 12px 10px 0;border-bottom:1px solid var(--line)}
+.visit-table th{font-weight:500;color:var(--muted);white-space:nowrap}
+.visit-table td:first-child,.visit-table td:nth-child(3){white-space:nowrap;font-variant-numeric:tabular-nums}
+.visit-table td:last-child{min-width:140px;overflow-wrap:anywhere}
+.visit-pagination{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:12px;font-size:12px}
