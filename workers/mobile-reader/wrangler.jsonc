@@ -1,0 +1,10 @@
+{
+  "name": "tidemark-reader",
+  "main": "index.ts",
+  "compatibility_date": "2026-11-14",
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [{"pattern":"zerolovesea.top/api/mobile/*","zone_name":"zerolovesea.top"}],
+  "d1_databases": [{"binding":"DB","database_name":"zerolovesea-view-counter","database_id":"29c15f27-121d-4e3c-8670-fecbe83ced4e"}],
+  "observability": {"enabled":true}
+}

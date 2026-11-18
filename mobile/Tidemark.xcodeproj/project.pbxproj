@@ -1,0 +1,36 @@
+// !$*UTF8*$!
+{ archiveVersion = 1; objectVersion = 56; classes = {}; objects = {
+000000000000000000000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App.swift"; sourceTree = "<group>"; };
+000000000000000000000002 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Shared.swift"; sourceTree = "<group>"; };
+000000000000000000000003 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Widgets.swift"; sourceTree = "<group>"; };
+000000000000000000000004 = { isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets.xcassets"; sourceTree = "<group>"; };
+000000000000000000000005 = { isa = PBXGroup; name = Products; children = (); sourceTree = "<group>"; };
+000000000000000000000006 = { isa = PBXGroup; path = Tidemark; children = (000000000000000000000001,000000000000000000000002,000000000000000000000003,000000000000000000000004); sourceTree = "<group>"; };
+000000000000000000000007 = { isa = PBXGroup; children = (000000000000000000000006,000000000000000000000005); sourceTree = "<group>"; };
+000000000000000000000008 = { isa = XCBuildConfiguration; name = Release; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; }; };
+000000000000000000000009 = { isa = XCConfigurationList; buildConfigurations = (000000000000000000000008); defaultConfigurationName = Release; };
+00000000000000000000000A = { isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = "TidemarkWidgets.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+00000000000000000000000B = { isa = XCBuildConfiguration; name = Release; buildSettings = { PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = top.zerolovesea.tidemark.reader.widgets; DEVELOPMENT_TEAM = 4M64879BBM; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 3; MARKETING_VERSION = 1.0.2; TARGETED_DEVICE_FAMILY = "1,2"; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Tidemark/Widget-Info.plist; CODE_SIGN_ENTITLEMENTS = Tidemark/Shared.entitlements; APPLICATION_EXTENSION_API_ONLY = YES; SKIP_INSTALL = YES; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)","@executable_path/Frameworks","@executable_path/../../Frameworks"); }; };
+00000000000000000000000C = { isa = XCConfigurationList; buildConfigurations = (00000000000000000000000B); defaultConfigurationName = Release; };
+00000000000000000000000D = { isa = PBXBuildFile; fileRef = 000000000000000000000002; };
+00000000000000000000000E = { isa = PBXBuildFile; fileRef = 000000000000000000000003; };
+00000000000000000000000F = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (00000000000000000000000D,00000000000000000000000E); runOnlyForDeploymentPostprocessing = 0; };
+000000000000000000000010 = { isa = PBXBuildFile; fileRef = 000000000000000000000004; };
+000000000000000000000011 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000010); runOnlyForDeploymentPostprocessing = 0; };
+000000000000000000000012 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+000000000000000000000013 = { isa = PBXNativeTarget; name = TidemarkWidgets; productName = TidemarkWidgets; productReference = 00000000000000000000000A; productType = "com.apple.product-type.app-extension"; buildConfigurationList = 00000000000000000000000C; buildPhases = (00000000000000000000000F,000000000000000000000011,000000000000000000000012); buildRules = (); dependencies = (); };
+000000000000000000000014 = { isa = PBXBuildFile; fileRef = 00000000000000000000000A; settings = { ATTRIBUTES = (RemoveHeadersOnCopy); }; };
+000000000000000000000015 = { isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (000000000000000000000014); name = "Embed Extensions"; runOnlyForDeploymentPostprocessing = 0; };
+000000000000000000000016 = { isa = PBXTargetDependency; target = 000000000000000000000013; };
+000000000000000000000017 = { isa = PBXFileReference; explicitFileType = "wrapper.application"; path = "Tidemark.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+000000000000000000000018 = { isa = XCBuildConfiguration; name = Release; buildSettings = { PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = top.zerolovesea.tidemark.reader; DEVELOPMENT_TEAM = 4M64879BBM; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 3; MARKETING_VERSION = 1.0.2; TARGETED_DEVICE_FAMILY = "1,2"; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Tidemark/App-Info.plist; CODE_SIGN_ENTITLEMENTS = Tidemark/Shared.entitlements; ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)","@executable_path/Frameworks","@executable_path/../../Frameworks"); }; };
+000000000000000000000019 = { isa = XCConfigurationList; buildConfigurations = (000000000000000000000018); defaultConfigurationName = Release; };
+00000000000000000000001A = { isa = PBXBuildFile; fileRef = 000000000000000000000001; };
+00000000000000000000001B = { isa = PBXBuildFile; fileRef = 000000000000000000000002; };
+00000000000000000000001C = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (00000000000000000000001A,00000000000000000000001B); runOnlyForDeploymentPostprocessing = 0; };
+00000000000000000000001D = { isa = PBXBuildFile; fileRef = 000000000000000000000004; };
+00000000000000000000001E = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (00000000000000000000001D); runOnlyForDeploymentPostprocessing = 0; };
+00000000000000000000001F = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+000000000000000000000020 = { isa = PBXNativeTarget; name = Tidemark; productName = Tidemark; productReference = 000000000000000000000017; productType = "com.apple.product-type.application"; buildConfigurationList = 000000000000000000000019; buildPhases = (00000000000000000000001C,00000000000000000000001E,00000000000000000000001F,000000000000000000000015); buildRules = (); dependencies = (000000000000000000000016); };
+000000000000000000000021 = { isa = PBXProject; attributes = { LastUpgradeCheck = 2700; }; buildConfigurationList = 000000000000000000000009; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; knownRegions = (en,Base,"zh-Hans"); mainGroup = 000000000000000000000007; productRefGroup = 000000000000000000000005; projectDirPath = ""; projectRoot = ""; targets = (000000000000000000000020,000000000000000000000013); };
+}; rootObject = 000000000000000000000021; }
